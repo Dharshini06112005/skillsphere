@@ -1,0 +1,79 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const http = require('http');
+const passport = require('passport');
+const connectDB = require('./config/db');
+const setupPassport = require('./config/passport');
+const initializeSocket = require('./config/socket');
+
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const profileRoutes = require('./routes/profileRoutes');
+const gigRoutes = require('./routes/gigRoutes');
+const proposalRoutes = require('./routes/proposalRoutes');
+const chatRoutes = require('./routes/chatRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const disputeRoutes = require('./routes/disputeRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const matchRoutes = require('./routes/matchRoutes');
+
+const app = express();
+const server = http.createServer(app);
+
+// Connect Database
+connectDB();
+
+// Initialize socket
+const socketHelper = initializeSocket(server);
+app.set('socketHelper', socketHelper);
+
+// Initialize passport config
+setupPassport();
+
+// Middlewares
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  credentials: true
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(passport.initialize());
+
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/gigs', gigRoutes);
+app.use('/api/proposals', proposalRoutes);
+app.use('/api/chats', chatRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/disputes', disputeRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/match', matchRoutes);
+
+// Root route
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Welcome to SkillSphere API - Intelligent Hyperlocal Freelance Ecosystem',
+    version: '1.0.0',
+    status: 'Running'
+  });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal Server Error',
+  });
+});
+
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`Server is running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+});

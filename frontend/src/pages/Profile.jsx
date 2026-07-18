@@ -57,6 +57,13 @@ const Profile = () => {
   const [newCertDate, setNewCertDate] = useState('');
   const [newCertLink, setNewCertLink] = useState('');
 
+  // Scheduler states
+  const [availabilitySlots, setAvailabilitySlots] = useState([]);
+  const [bookings, setBookings] = useState([]);
+  const [newSlotDay, setNewSlotDay] = useState('Monday');
+  const [newSlotStart, setNewSlotStart] = useState('09:00');
+  const [newSlotEnd, setNewSlotEnd] = useState('10:00');
+
   // Client specific forms
   const [companyName, setCompanyName] = useState('');
   const [industry, setIndustry] = useState('');
@@ -97,6 +104,8 @@ const Profile = () => {
           setResumeUrl(p.resumeUrl || '');
           setPortfolio(p.portfolio || []);
           setCertifications(p.certifications || []);
+          setAvailabilitySlots(p.availabilitySlots || []);
+          setBookings(p.bookings || []);
         } else if (user?.role === 'client') {
           setCompanyName(p.companyName || '');
           setIndustry(p.industry || '');
@@ -130,6 +139,8 @@ const Profile = () => {
       updatePayload.resumeUrl = resumeUrl;
       updatePayload.portfolio = portfolio;
       updatePayload.certifications = certifications;
+      updatePayload.availabilitySlots = availabilitySlots;
+      updatePayload.bookings = bookings;
     } else if (user?.role === 'client') {
       updatePayload.companyName = companyName;
       updatePayload.industry = industry;
@@ -251,6 +262,30 @@ const Profile = () => {
   // Remove certification entry
   const handleRemoveCertification = (idxToRemove) => {
     setCertifications(certifications.filter((_, idx) => idx !== idxToRemove));
+  };
+
+  // Add availability slot
+  const handleAddSlot = (e) => {
+    e.preventDefault();
+    if (!newSlotDay || !newSlotStart || !newSlotEnd) return;
+
+    const newSlot = {
+      day: newSlotDay,
+      startHour: newSlotStart,
+      endHour: newSlotEnd
+    };
+
+    if (availabilitySlots.some(s => s.day === newSlotDay && s.startHour === newSlotStart && s.endHour === newSlotEnd)) {
+      setMessage({ type: 'error', text: 'Availability slot already added!' });
+      return;
+    }
+
+    setAvailabilitySlots([...availabilitySlots, newSlot]);
+  };
+
+  // Remove availability slot
+  const handleRemoveSlot = (idxToRemove) => {
+    setAvailabilitySlots(availabilitySlots.filter((_, idx) => idx !== idxToRemove));
   };
 
   // 2FA Actions
@@ -759,6 +794,101 @@ const Profile = () => {
                           >
                             <Trash2 size={15} />
                           </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Availability Scheduler slots manager */}
+                <div className="space-y-4 border-t border-gray-800/60 pt-4">
+                  <label className="text-sm font-semibold text-gray-300 block">Availability Calendar Slots</label>
+                  
+                  {/* Slots Addition Form */}
+                  <div className="p-4 rounded-2xl bg-gray-950/30 border border-gray-900 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-gray-500 uppercase tracking-wider block font-semibold">Day of Week</span>
+                        <select
+                          value={newSlotDay}
+                          onChange={(e) => setNewSlotDay(e.target.value)}
+                          className="w-full bg-gray-900/40 border border-gray-800 focus:border-indigo-500 rounded-xl py-2 px-3 text-white text-xs outline-none"
+                        >
+                          {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
+                            <option key={day} value={day}>{day}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-gray-500 uppercase tracking-wider block font-semibold">Start Time</span>
+                        <input
+                          type="text"
+                          placeholder="e.g. 09:00"
+                          value={newSlotStart}
+                          onChange={(e) => setNewSlotStart(e.target.value)}
+                          className="w-full bg-gray-900/40 border border-gray-800 focus:border-indigo-500 rounded-xl py-2 px-3 text-white text-xs outline-none"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-gray-500 uppercase tracking-wider block font-semibold">End Time</span>
+                        <input
+                          type="text"
+                          placeholder="e.g. 12:00"
+                          value={newSlotEnd}
+                          onChange={(e) => setNewSlotEnd(e.target.value)}
+                          className="w-full bg-gray-900/40 border border-gray-800 focus:border-indigo-500 rounded-xl py-2 px-3 text-white text-xs outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddSlot}
+                      className="w-full bg-gray-900 border border-gray-800 hover:border-indigo-500/30 text-white font-semibold py-2 px-4 rounded-xl text-xs hover:bg-gray-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <PlusCircle size={14} /> Add Calendar Slot
+                    </button>
+                  </div>
+
+                  {/* Active Slots list */}
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {availabilitySlots.length === 0 ? (
+                      <span className="text-xs text-gray-500 italic">No availability slots set. Set slots so clients can book consultations!</span>
+                    ) : (
+                      availabilitySlots.map((slot, idx) => (
+                        <div key={idx} className="flex items-center gap-2 bg-indigo-950/40 border border-indigo-900/40 text-indigo-300 px-3 py-1.5 rounded-xl text-xs">
+                          <span>{slot.day}: {slot.startHour} - {slot.endHour}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSlot(idx)}
+                            className="text-gray-500 hover:text-red-400 cursor-pointer text-xs"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Booked Consultations */}
+                <div className="space-y-4 border-t border-gray-800/60 pt-4">
+                  <label className="text-sm font-semibold text-gray-300 block">Scheduled Consultation Bookings</label>
+                  <div className="space-y-3">
+                    {bookings.length === 0 ? (
+                      <span className="text-xs text-gray-500 italic block">No consultation bookings scheduled.</span>
+                    ) : (
+                      bookings.map((booking, idx) => (
+                        <div key={idx} className="flex justify-between items-center p-4 rounded-2xl bg-gray-950/40 border border-gray-900">
+                          <div>
+                            <h4 className="text-sm font-bold text-white">Consultation with {booking.clientName}</h4>
+                            <p className="text-xs text-indigo-400 font-semibold">{booking.day} | {booking.timeSlot}</p>
+                          </div>
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-950/20 text-emerald-400 border border-emerald-900/30">
+                            {booking.status}
+                          </span>
                         </div>
                       ))
                     )}

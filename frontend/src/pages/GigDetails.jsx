@@ -59,6 +59,12 @@ const GigDetails = () => {
   const [negotiatingPropId, setNegotiatingPropId] = useState(null);
   const [counterOfferVal, setCounterOfferVal] = useState('');
 
+  // Freelancer profile modal & booking states
+  const [showFreelancerModal, setShowFreelancerModal] = useState(false);
+  const [selectedFreelancer, setSelectedFreelancer] = useState(null);
+  const [bookingDay, setBookingDay] = useState('');
+  const [bookingSlot, setBookingSlot] = useState('');
+
   useEffect(() => {
     loadGigData();
   }, [id]);
@@ -217,6 +223,55 @@ const GigDetails = () => {
     }
   };
 
+  const handleOpenFreelancerProfile = async (freelancerId) => {
+    setError('');
+    setSuccess('');
+    try {
+      const res = await API.get(`/profile/freelancer/${freelancerId}`);
+      if (res.data.success) {
+        setSelectedFreelancer(res.data.profile);
+        setShowFreelancerModal(true);
+        const slots = res.data.profile.availabilitySlots || [];
+        if (slots.length > 0) {
+          setBookingDay(slots[0].day);
+          setBookingSlot(`${slots[0].startHour} - ${slots[0].endHour}`);
+        } else {
+          setBookingDay('');
+          setBookingSlot('');
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Could not load freelancer profile.');
+    }
+  };
+
+  const handleBookSlotSubmit = async (e) => {
+    e.preventDefault();
+    if (!bookingDay || !bookingSlot) return;
+
+    setError('');
+    setSuccess('');
+    setActionLoading(true);
+    setShowFreelancerModal(false);
+
+    try {
+      const res = await API.post(`/profile/freelancer/${selectedFreelancer.user?._id}/book`, {
+        day: bookingDay,
+        timeSlot: bookingSlot
+      });
+
+      if (res.data.success) {
+        setSuccess('Consultation appointment booked successfully on freelancer calendar!');
+        loadGigData();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to book slot.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // Open Chat Room
   const handleInitiateChat = (counterpartId, counterpartName) => {
     const ids = [user?._id, counterpartId].sort();
@@ -266,7 +321,6 @@ const GigDetails = () => {
     setActionLoading(true);
 
     try {
-      // Find the milestone transaction to release funds if client approves completion
       if (user?.role === 'client' && newStatus === 'approved') {
         const txRes = await API.get('/payments/history');
         const transaction = txRes.data.transactions.find(
@@ -274,8 +328,7 @@ const GigDetails = () => {
         );
 
         if (transaction) {
-          // Release locked funds
-          await API.put(`/proposals/${transaction._id}/status`, { status: 'accepted' }); // dummy reuse or custom route
+          await API.post('/payments/release', { transactionId: transaction._id });
         }
       }
 
@@ -570,7 +623,13 @@ const GigDetails = () => {
                   <div key={match.profile._id} className="p-4 rounded-2xl bg-gray-950/40 border border-gray-900 space-y-2.5">
                     <div className="flex justify-between items-start">
                       <div>
-                        <span className="block text-xs font-bold text-white truncate max-w-[130px]">{match.profile.user?.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenFreelancerProfile(match.profile.user?._id)}
+                          className="block text-xs font-bold text-white hover:text-indigo-400 text-left truncate max-w-[130px] transition-colors cursor-pointer"
+                        >
+                          {match.profile.user?.name}
+                        </button>
                         <span className="text-[10px] text-gray-500">Reputation: {match.reputationScore} ⭐</span>
                       </div>
                       <span className="text-[10px] font-bold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-full">
@@ -625,7 +684,13 @@ const GigDetails = () => {
                     <div key={prop._id} className="p-4 rounded-2xl bg-gray-950/40 border border-gray-900 space-y-3 relative group">
                       <div className="flex justify-between items-start">
                         <div>
-                          <span className="block text-sm font-bold text-white truncate max-w-[140px]">{prop.freelancer?.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenFreelancerProfile(prop.freelancer?._id)}
+                            className="block text-sm font-bold text-white hover:text-indigo-400 text-left truncate max-w-[140px] transition-colors cursor-pointer"
+                          >
+                            {prop.freelancer?.name}
+                          </button>
                           <span className="block text-[10px] text-gray-500">Reputation rating: 5.0 ⭐</span>
                         </div>
                         <div className="text-right">
@@ -940,6 +1005,154 @@ const GigDetails = () => {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Freelancer Profile Details & Scheduling Modal */}
+      {showFreelancerModal && selectedFreelancer && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+          <div className="glass p-6 md:p-8 rounded-3xl max-w-2xl w-full my-8 shadow-2xl relative animate-fade-in border border-indigo-500/10 max-h-[90vh] overflow-y-auto">
+            
+            <div className="flex justify-between items-start border-b border-gray-800 pb-4 mb-5">
+              <div>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  {selectedFreelancer.user?.name}
+                  {selectedFreelancer.verificationBadge && (
+                    <span className="text-[10px] bg-indigo-650/40 text-indigo-400 border border-indigo-500/30 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                      Verified
+                    </span>
+                  )}
+                </h3>
+                <p className="text-xs text-indigo-400 font-semibold mt-1">Hourly Rate: ${selectedFreelancer.hourlyRate}/hr | Status: {selectedFreelancer.availability}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFreelancerModal(false)}
+                className="text-gray-400 hover:text-white text-xl cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {selectedFreelancer.bio && (
+                <div className="space-y-1.5">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider text-gray-400">Biography</h4>
+                  <p className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap">{selectedFreelancer.bio}</p>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider text-gray-400">Skills & Proficiency</h4>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedFreelancer.skills.map((s, i) => (
+                    <span key={i} className="text-xs bg-gray-900 border border-gray-800 text-gray-300 py-1 px-3 rounded-lg font-medium">
+                      {s.name} ({s.level})
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {selectedFreelancer.experience && selectedFreelancer.experience.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider text-gray-400">Work History</h4>
+                  <div className="space-y-2">
+                    {selectedFreelancer.experience.map((exp, i) => (
+                      <div key={i} className="p-3 bg-gray-950/40 border border-gray-900 rounded-xl">
+                        <h5 className="text-xs font-bold text-white">{exp.title}</h5>
+                        <p className="text-[10px] text-indigo-400 font-medium">{exp.company}</p>
+                        {exp.description && <p className="text-[10px] text-gray-400 mt-1">{exp.description}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedFreelancer.portfolio && selectedFreelancer.portfolio.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider text-gray-400">Portfolio Gallery</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {selectedFreelancer.portfolio.map((port, i) => (
+                      <div key={i} className="p-3 bg-gray-950/40 border border-gray-900 rounded-xl">
+                        <h5 className="text-xs font-bold text-white">{port.title}</h5>
+                        {port.description && <p className="text-[10px] text-gray-400 mt-1">{port.description}</p>}
+                        {port.link && (
+                          <a href={port.link} target="_blank" rel="noreferrer" className="text-[10px] text-indigo-400 underline block mt-2">
+                            View Project Link
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="border-t border-gray-800 pt-5 mt-4 space-y-4">
+                <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                  <Calendar size={16} className="text-indigo-400" />
+                  Book consultation appointment
+                </h4>
+                
+                {selectedFreelancer.availabilitySlots && selectedFreelancer.availabilitySlots.length > 0 ? (
+                  <form onSubmit={handleBookSlotSubmit} className="p-4 bg-indigo-950/20 border border-indigo-900/40 rounded-2xl space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-gray-400 font-semibold block">Select Day</label>
+                        <select
+                          value={bookingDay}
+                          onChange={(e) => setBookingDay(e.target.value)}
+                          className="w-full bg-gray-900 border border-gray-850 focus:border-indigo-500 rounded-xl py-2 px-3 text-white text-xs outline-none"
+                        >
+                          {selectedFreelancer.availabilitySlots.map((slot, i) => (
+                            <option key={i} value={slot.day}>{slot.day}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] text-gray-400 font-semibold block">Select Time Slot</label>
+                        <select
+                          value={bookingSlot}
+                          onChange={(e) => setBookingSlot(e.target.value)}
+                          className="w-full bg-gray-900 border border-gray-850 focus:border-indigo-500 rounded-xl py-2 px-3 text-white text-xs outline-none"
+                        >
+                          {selectedFreelancer.availabilitySlots
+                            .filter(slot => slot.day === bookingDay)
+                            .map((slot, i) => (
+                              <option key={i} value={`${slot.startHour} - ${slot.endHour}`}>
+                                {slot.startHour} - {slot.endHour}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2.5 rounded-xl transition-all cursor-pointer shadow-md shadow-indigo-600/30"
+                    >
+                      Confirm Booking Appointment
+                    </button>
+                  </form>
+                ) : (
+                  <p className="text-xs text-gray-500 italic">
+                    This freelancer has not configured availability slots yet.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-6 mt-6 border-t border-gray-800">
+              <button
+                type="button"
+                onClick={() => setShowFreelancerModal(false)}
+                className="bg-gray-900 border border-gray-800 hover:bg-gray-800 text-white text-xs font-semibold py-2.5 px-5 rounded-xl cursor-pointer"
+              >
+                Close Profile
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
 

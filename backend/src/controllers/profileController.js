@@ -60,7 +60,9 @@ exports.updateMyProfile = async (req, res) => {
         experience, 
         availability, 
         hourlyRate,
-        bio
+        bio,
+        availabilitySlots,
+        bookings
       } = req.body;
 
       if (skills !== undefined) profile.skills = skills;
@@ -71,6 +73,8 @@ exports.updateMyProfile = async (req, res) => {
       if (availability !== undefined) profile.availability = availability;
       if (hourlyRate !== undefined) profile.hourlyRate = hourlyRate;
       if (bio !== undefined) profile.bio = bio;
+      if (availabilitySlots !== undefined) profile.availabilitySlots = availabilitySlots;
+      if (bookings !== undefined) profile.bookings = bookings;
 
     } else if (userRole === 'client') {
       // Client fields
@@ -134,5 +138,58 @@ exports.getPublicFreelancerProfile = async (req, res) => {
   } catch (error) {
     console.error('Get public profile error:', error);
     res.status(500).json({ success: false, message: 'Could not fetch profile' });
+  }
+};
+
+/**
+ * Book an availability slot on a freelancer's profile (Client only)
+ */
+exports.bookFreelancerSlot = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { day, timeSlot } = req.body;
+
+    if (!day || !timeSlot) {
+      return res.status(400).json({ success: false, message: 'Day and Time Slot are required for booking' });
+    }
+
+    const profile = await Profile.findOne({ user: id });
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Freelancer profile not found' });
+    }
+
+    const isBooked = profile.bookings.some(
+      b => b.day === day && b.timeSlot === timeSlot && b.status !== 'cancelled'
+    );
+    if (isBooked) {
+      return res.status(400).json({ success: false, message: 'This availability slot is already booked' });
+    }
+
+    profile.bookings.push({
+      client: req.user._id,
+      clientName: req.user.name,
+      day,
+      timeSlot,
+      status: 'confirmed'
+    });
+
+    await profile.save();
+
+    const Notification = require('../models/Notification');
+    await Notification.create({
+      user: id,
+      type: 'system',
+      message: `Client ${req.user.name} has booked a slot on your calendar: ${day} at ${timeSlot}!`,
+      relatedId: profile._id.toString()
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Consultation slot booked successfully!',
+      profile
+    });
+  } catch (error) {
+    console.error('Book slot error:', error);
+    res.status(500).json({ success: false, message: 'Failed to book slot' });
   }
 };

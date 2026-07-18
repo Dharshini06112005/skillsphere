@@ -80,6 +80,22 @@ const profileSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    availabilitySlots: [
+      {
+        day: { type: String, required: true }, // e.g. "Monday", "Tuesday"
+        startHour: { type: String, required: true }, // e.g. "09:00"
+        endHour: { type: String, required: true } // e.g. "12:00"
+      }
+    ],
+    bookings: [
+      {
+        client: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        clientName: String,
+        day: String,
+        timeSlot: String, // e.g. "09:00 - 10:00"
+        status: { type: String, enum: ['pending', 'confirmed', 'cancelled'], default: 'confirmed' }
+      }
+    ]
   },
   {
     timestamps: true,

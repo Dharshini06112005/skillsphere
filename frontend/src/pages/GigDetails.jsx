@@ -18,7 +18,8 @@ import {
   MessageSquare,
   Sparkles,
   ShieldCheck,
-  CreditCard
+  CreditCard,
+  Star
 } from 'lucide-react';
 
 const GigDetails = () => {
@@ -64,6 +65,11 @@ const GigDetails = () => {
   const [selectedFreelancer, setSelectedFreelancer] = useState(null);
   const [bookingDay, setBookingDay] = useState('');
   const [bookingSlot, setBookingSlot] = useState('');
+
+  // Rating & Review states
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [hasSubmittedReview, setHasSubmittedReview] = useState(false);
 
   useEffect(() => {
     loadGigData();
@@ -267,6 +273,48 @@ const GigDetails = () => {
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to book slot.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!reviewComment.trim()) return;
+
+    setError('');
+    setSuccess('');
+    setActionLoading(true);
+
+    try {
+      let revieweeId = '';
+      if (user?.role === 'client') {
+        const acceptedProp = proposals.find(p => p.status === 'accepted');
+        revieweeId = acceptedProp ? acceptedProp.freelancer?._id : '';
+      } else {
+        revieweeId = gig.client?._id || gig.client;
+      }
+
+      if (!revieweeId) {
+        setError('Counterparty freelancer/client not found for review.');
+        return;
+      }
+
+      const res = await API.post('/reviews', {
+        gigId: id,
+        revieweeId,
+        rating: Number(reviewRating),
+        comment: reviewComment.trim()
+      });
+
+      if (res.data.success) {
+        setSuccess('Thank you! Review and rating successfully submitted.');
+        setHasSubmittedReview(true);
+        setReviewComment('');
+        loadGigData();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not submit review.');
     } finally {
       setActionLoading(false);
     }
@@ -601,6 +649,66 @@ const GigDetails = () => {
                 })}
               </div>
             </div>
+
+            {/* Project Feedback Rating & Reviews Panel */}
+            {gig.status === 'completed' && !hasSubmittedReview && (
+              <div className="glass p-6 rounded-3xl space-y-6 shadow-xl relative overflow-hidden border border-indigo-500/10 mt-6">
+                <div className="absolute -top-12 -right-12 w-20 h-20 bg-indigo-500/10 rounded-full blur-2xl"></div>
+                
+                <h2 className="text-xl font-bold text-white flex items-center gap-2 border-b border-gray-800 pb-3">
+                  <Star className="text-amber-400 fill-amber-400" />
+                  Leave Project Review Feedback
+                </h2>
+                
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Now that the gig is completed and funds are released, share your feedback review about the work collaboration.
+                </p>
+
+                <form onSubmit={handleReviewSubmit} className="space-y-4 pt-1">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-300">Feedback Rating (1 to 5 Stars)</label>
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setReviewRating(star)}
+                          className="focus:outline-none transition-transform hover:scale-110 cursor-pointer"
+                        >
+                          <Star
+                            size={24}
+                            className={
+                              star <= reviewRating
+                                ? 'text-amber-400 fill-amber-400'
+                                : 'text-gray-600 hover:text-amber-500'
+                            }
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-gray-300">Comments & Review Remarks</label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value)}
+                      placeholder="e.g. Excellent communication, delivered code on schedule, highly recommended!"
+                      className="w-full bg-gray-900/50 border border-gray-800 focus:border-indigo-500 rounded-xl py-2.5 px-4 text-white text-xs outline-none resize-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-3 px-4 rounded-xl transition-all cursor-pointer shadow-lg shadow-indigo-600/30"
+                  >
+                    Submit Review Feedback
+                  </button>
+                </form>
+              </div>
+            )}
 
           </div>
         </div>

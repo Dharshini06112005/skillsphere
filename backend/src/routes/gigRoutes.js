@@ -11,5 +11,6 @@ router.get('/:id', gigController.getGigDetails);
 // Private Client routes
 router.post('/', protect, restrictTo('client'), gigController.createGig);
 router.put('/:id', protect, restrictTo('client'), gigController.updateGig);
+router.post('/:id/invite', protect, restrictTo('client'), gigController.inviteFreelancer);
 
 module.exports = router;

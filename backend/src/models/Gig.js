@@ -61,6 +61,18 @@ const gigSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    attachments: [
+      {
+        name: { type: String, required: true },
+        url: { type: String, required: true }
+      }
+    ],
+    invitedFreelancers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      }
+    ]
   },
   {
     timestamps: true,

@@ -158,3 +158,74 @@ exports.updateProposalStatus = async (req, res) => {
     res.status(500).json({ success: false, message: 'Could not update proposal status' });
   }
 };
+
+/**
+ * Negotiate a proposal (Client counter-offer or Freelancer counter-offer response)
+ */
+exports.negotiateProposal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { counterOffer, acceptOffer } = req.body;
+
+    const proposal = await Proposal.findById(id).populate('gig');
+    if (!proposal) {
+      return res.status(404).json({ success: false, message: 'Proposal not found' });
+    }
+
+    const userId = req.user._id.toString();
+    const isClient = proposal.gig.client.toString() === userId;
+    const isFreelancer = proposal.freelancer.toString() === userId;
+
+    if (!isClient && !isFreelancer) {
+      return res.status(403).json({ success: false, message: 'Unauthorized to negotiate this proposal' });
+    }
+
+    if (isClient) {
+      if (!counterOffer || isNaN(counterOffer)) {
+        return res.status(400).json({ success: false, message: 'Please provide a valid counter-offer amount' });
+      }
+      proposal.counterOffer = Number(counterOffer);
+      proposal.status = 'negotiating';
+      await proposal.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Counter-offer submitted to freelancer successfully!',
+        proposal,
+      });
+    } else if (isFreelancer) {
+      if (acceptOffer === undefined) {
+        return res.status(400).json({ success: false, message: 'Please accept or decline the client counter-offer' });
+      }
+
+      if (acceptOffer) {
+        if (proposal.counterOffer <= 0) {
+          return res.status(400).json({ success: false, message: 'No active counter-offer to accept' });
+        }
+        proposal.bidAmount = proposal.counterOffer;
+        proposal.counterOffer = 0;
+        proposal.status = 'pending';
+        await proposal.save();
+
+        res.status(200).json({
+          success: true,
+          message: 'Client counter-offer accepted! Bid amount updated. Waiting for client to confirm acceptance.',
+          proposal,
+        });
+      } else {
+        proposal.counterOffer = 0;
+        proposal.status = 'pending';
+        await proposal.save();
+
+        res.status(200).json({
+          success: true,
+          message: 'Counter-offer declined. Proposal reset to original bid.',
+          proposal,
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Negotiate proposal error:', error);
+    res.status(500).json({ success: false, message: 'Could not complete negotiation' });
+  }
+};

@@ -55,6 +55,10 @@ const GigDetails = () => {
   const [success, setSuccess] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Negotiation & Invite states
+  const [negotiatingPropId, setNegotiatingPropId] = useState(null);
+  const [counterOfferVal, setCounterOfferVal] = useState('');
+
   useEffect(() => {
     loadGigData();
   }, [id]);
@@ -143,6 +147,71 @@ const GigDetails = () => {
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Could not update proposal status.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Reject Proposal (Client)
+  const handleRejectProposal = async (proposalId) => {
+    if (!window.confirm('Are you sure you want to reject this proposal?')) return;
+    setError('');
+    setActionLoading(true);
+
+    try {
+      const response = await API.put(`/proposals/${proposalId}/status`, { status: 'rejected' });
+      if (response.data.success) {
+        setSuccess('Proposal rejected successfully.');
+        loadGigData();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not update proposal status.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Send Counter-Offer (Client)
+  const handleSendCounterOffer = async (proposalId) => {
+    if (!counterOfferVal || isNaN(counterOfferVal)) {
+      setError('Please provide a valid counter-offer bid amount.');
+      return;
+    }
+    setError('');
+    setSuccess('');
+    setActionLoading(true);
+
+    try {
+      const response = await API.put(`/proposals/${proposalId}/negotiate`, {
+        counterOffer: Number(counterOfferVal)
+      });
+      if (response.data.success) {
+        setSuccess('Counter-offer submitted to freelancer successfully!');
+        setNegotiatingPropId(null);
+        setCounterOfferVal('');
+        loadGigData();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not send counter-offer.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  // Invite Freelancer (Client)
+  const handleInviteFreelancer = async (freelancerId) => {
+    setError('');
+    setSuccess('');
+    setActionLoading(true);
+
+    try {
+      const response = await API.post(`/gigs/${id}/invite`, { freelancerId });
+      if (response.data.success) {
+        setSuccess('Invitation sent successfully!');
+        loadGigData();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not send invitation.');
     } finally {
       setActionLoading(false);
     }
@@ -354,6 +423,28 @@ const GigDetails = () => {
               </div>
             </div>
 
+            {gig.attachments && gig.attachments.length > 0 && (
+              <div className="space-y-2.5 border-t border-gray-800 pt-5">
+                <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
+                  <FileText size={15} className="text-indigo-400" />
+                  Project Attachments
+                </h3>
+                <div className="space-y-2">
+                  {gig.attachments.map((file, idx) => (
+                    <a
+                      key={idx}
+                      href={file.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold underline flex items-center gap-1 w-fit"
+                    >
+                      📎 {file.name || 'Project Specifications Brief'}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Milestones Escrow payment release logs */}
             <div className="space-y-3.5 border-t border-gray-800 pt-5">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -495,13 +586,23 @@ const GigDetails = () => {
                       ))}
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => handleInitiateChat(match.profile.user?._id, match.profile.user?.name)}
-                      className="w-full bg-indigo-600/10 hover:bg-indigo-600 hover:text-white border border-indigo-500/30 text-indigo-400 text-xs font-semibold py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <MessageSquare size={13} /> Chat with Freelancer
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleInitiateChat(match.profile.user?._id, match.profile.user?.name)}
+                        className="w-1/2 bg-gray-900 border border-gray-800 hover:border-indigo-500/30 text-white text-xs font-semibold py-2 px-1.5 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <MessageSquare size={12} /> Chat
+                      </button>
+                      <button
+                        type="button"
+                        disabled={gig.invitedFreelancers?.includes(match.profile.user?._id)}
+                        onClick={() => handleInviteFreelancer(match.profile.user?._id)}
+                        className="w-1/2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-800 disabled:text-gray-500 disabled:border-transparent text-white text-xs font-semibold py-2 px-1.5 rounded-xl transition-all cursor-pointer"
+                      >
+                        {gig.invitedFreelancers?.includes(match.profile.user?._id) ? 'Invited' : 'Invite'}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -535,31 +636,74 @@ const GigDetails = () => {
 
                       <p className="text-xs text-gray-400 line-clamp-3 leading-relaxed whitespace-pre-wrap">{prop.description}</p>
                       
-                      <div className="flex gap-2 pt-2 border-t border-gray-900">
-                        <button
-                          type="button"
-                          onClick={() => handleInitiateChat(prop.freelancer?._id, prop.freelancer?.name)}
-                          className="w-1/2 bg-gray-900 border border-gray-800 hover:border-indigo-500/30 text-white text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1 cursor-pointer"
-                        >
-                          <MessageSquare size={12} /> Chat
-                        </button>
-                        {gig.status === 'open' && prop.status === 'pending' && (
-                          <button
-                            type="button"
-                            onClick={() => handleAcceptProposal(prop._id)}
-                            className="w-1/2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2 px-3 rounded-xl transition-colors cursor-pointer"
-                          >
-                            Accept
-                          </button>
-                        )}
-                        {prop.status !== 'pending' && (
-                          <span className={`w-1/2 text-center text-xs font-bold uppercase tracking-wider py-2 rounded-xl ${
+                      <div className="flex flex-col gap-2 pt-2 border-t border-gray-900 w-full">
+                        {gig.status === 'open' && (prop.status === 'pending' || prop.status === 'negotiating') ? (
+                          <>
+                            <div className="flex gap-2 w-full">
+                              <button
+                                type="button"
+                                onClick={() => handleInitiateChat(prop.freelancer?._id, prop.freelancer?.name)}
+                                className="w-1/3 bg-gray-900 border border-gray-800 hover:border-indigo-500/30 text-white text-[10px] font-semibold py-2 rounded-xl flex items-center justify-center gap-1 cursor-pointer"
+                              >
+                                <MessageSquare size={10} /> Chat
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleAcceptProposal(prop._id)}
+                                className="w-1/3 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-semibold py-2 rounded-xl transition-colors cursor-pointer"
+                              >
+                                Accept
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRejectProposal(prop._id)}
+                                className="w-1/3 bg-red-950/20 border border-red-900/40 text-red-400 hover:bg-red-950 hover:text-red-300 text-[10px] font-semibold py-2 rounded-xl transition-colors cursor-pointer"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                            <div className="flex gap-2 w-full">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNegotiatingPropId(negotiatingPropId === prop._id ? null : prop._id);
+                                  setCounterOfferVal(prop.bidAmount);
+                                }}
+                                className="w-full bg-amber-950/20 border border-amber-900/40 text-amber-400 hover:bg-amber-950 hover:text-amber-300 text-[10px] font-semibold py-1.5 rounded-xl cursor-pointer"
+                              >
+                                {prop.status === 'negotiating' ? `Negotiating (Offer: $${prop.counterOffer})` : 'Negotiate Price'}
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <span className={`w-full text-center text-xs font-bold uppercase tracking-wider py-2 rounded-xl ${
                             prop.status === 'accepted' ? 'bg-emerald-950/20 text-emerald-400' : 'bg-red-950/20 text-red-400'
                           }`}>
                             {prop.status}
                           </span>
                         )}
                       </div>
+
+                      {negotiatingPropId === prop._id && (
+                        <div className="space-y-2 p-3 bg-gray-950 rounded-xl border border-gray-800/60 mt-2">
+                          <label className="text-[10px] text-gray-400 font-semibold block">Submit Counter-Offer Bid ($ USD)</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              value={counterOfferVal}
+                              onChange={(e) => setCounterOfferVal(e.target.value)}
+                              className="w-2/3 bg-gray-900 border border-gray-800 text-xs py-1 px-2 text-white outline-none rounded-lg"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSendCounterOffer(prop._id)}
+                              className="w-1/3 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-semibold py-1 rounded-lg cursor-pointer"
+                            >
+                              Send
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}

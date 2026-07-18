@@ -35,6 +35,20 @@ const Proposals = () => {
     }
   };
 
+  const handleNegotiationResponse = async (e, proposalId, acceptOffer) => {
+    e.stopPropagation();
+    try {
+      const response = await API.put(`/proposals/${proposalId}/negotiate`, { acceptOffer });
+      if (response.data.success) {
+        alert(response.data.message);
+        fetchMyProposals();
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Error processing counter-offer.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -90,6 +104,8 @@ const Proposals = () => {
                       ? 'bg-emerald-950/30 text-emerald-400 border border-emerald-900/30'
                       : prop.status === 'rejected'
                       ? 'bg-red-950/30 text-red-400 border border-red-900/30'
+                      : prop.status === 'negotiating'
+                      ? 'bg-amber-950/30 text-amber-400 border border-amber-900/30 animate-pulse'
                       : 'bg-gray-800 text-gray-400'
                   }`}>
                     {prop.status}
@@ -104,6 +120,28 @@ const Proposals = () => {
                 <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">
                   {prop.description}
                 </p>
+
+                {prop.status === 'negotiating' && prop.counterOffer > 0 && (
+                  <div className="bg-amber-950/20 border border-amber-900/40 rounded-xl p-3 space-y-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                    <span className="block text-[10px] text-amber-400 font-bold uppercase tracking-wider">Client Counter-Offer: ${prop.counterOffer}</span>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => handleNegotiationResponse(e, prop._id, true)}
+                        className="w-1/2 bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold py-1.5 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Accept Offer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleNegotiationResponse(e, prop._id, false)}
+                        className="w-1/2 bg-gray-950 border border-gray-800 hover:bg-gray-900 text-white text-[10px] font-bold py-1.5 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-between items-center pt-4 border-t border-gray-900 mt-2">

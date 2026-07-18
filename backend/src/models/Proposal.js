@@ -31,6 +31,10 @@ const proposalSchema = new mongoose.Schema(
       enum: ['pending', 'negotiating', 'accepted', 'rejected'],
       default: 'pending',
     },
+    counterOffer: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

@@ -11,7 +11,14 @@ import {
   Clock,
   Check,
   CheckCheck,
-  ArrowLeft
+  ArrowLeft,
+  Paperclip,
+  Video,
+  VideoOff,
+  Mic,
+  MicOff,
+  PhoneOff,
+  ExternalLink
 } from 'lucide-react';
 
 const Chats = () => {
@@ -32,6 +39,40 @@ const Chats = () => {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [contactTyping, setContactTyping] = useState(false);
   const [typingTimeout, setTypingTimeout] = useState(null);
+
+  // File sharing & Video call states
+  const [fileUrl, setFileUrl] = useState('');
+  const [showFileModal, setShowFileModal] = useState(false);
+
+  const [activeVideoCall, setActiveVideoCall] = useState(false);
+  const [videoMuted, setVideoMuted] = useState(false);
+  const [audioMuted, setAudioMuted] = useState(false);
+  const [callDuration, setCallDuration] = useState(0);
+  const [callTimer, setCallTimer] = useState(null);
+
+  useEffect(() => {
+    if (activeVideoCall) {
+      setCallDuration(0);
+      const timer = setInterval(() => {
+        setCallDuration((prev) => prev + 1);
+      }, 1000);
+      setCallTimer(timer);
+    } else {
+      if (callTimer) {
+        clearInterval(callTimer);
+        setCallTimer(null);
+      }
+    }
+    return () => {
+      if (callTimer) clearInterval(callTimer);
+    };
+  }, [activeVideoCall]);
+
+  const formatDuration = (sec) => {
+    const m = Math.floor(sec / 60).toString().padStart(2, '0');
+    const s = (sec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
 
   // Connect Socket.IO on mount
   useEffect(() => {
@@ -154,16 +195,18 @@ const Chats = () => {
     fetchRooms(); // reset unread count badge
   };
 
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!messageText.trim() || !activeRoom) return;
+  const handleSendMessage = (e, customFileUrl) => {
+    if (e) e.preventDefault();
+    const activeText = messageText.trim();
+    if (!activeText && !customFileUrl) return;
 
     const payload = {
       sender: user?._id,
       senderName: user?.name,
       recipient: activeRoom.contact?._id,
       room: activeRoom.room,
-      text: messageText.trim(),
+      text: activeText || '📎 Sent an attachment',
+      fileUrl: customFileUrl || null
     };
 
     // Emit via Socket.IO
@@ -176,6 +219,15 @@ const Chats = () => {
       userId: user?._id,
       isTyping: false,
     });
+  };
+
+  const handleSendFileLink = (e) => {
+    e.preventDefault();
+    if (!fileUrl.trim()) return;
+
+    handleSendMessage(null, fileUrl.trim());
+    setFileUrl('');
+    setShowFileModal(false);
   };
 
   // Handle typing state
@@ -277,22 +329,33 @@ const Chats = () => {
         {activeRoom ? (
           <>
             {/* Header info */}
-            <div className="px-6 py-4 border-b border-gray-900 flex items-center gap-4 bg-gray-950/20">
+            <div className="px-6 py-4 border-b border-gray-900 flex justify-between items-center bg-gray-950/20">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setActiveRoom(null)}
+                  className="md:hidden p-1.5 rounded-lg bg-gray-900 text-gray-400 hover:text-white shrink-0"
+                >
+                  <ArrowLeft size={16} />
+                </button>
+                <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-bold uppercase shrink-0">
+                  {activeRoom.contact?.name?.charAt(0) || 'U'}
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">{activeRoom.contact?.name}</h3>
+                  <span className="text-[10px] text-indigo-400 uppercase tracking-widest font-semibold block">
+                    Active room session
+                  </span>
+                </div>
+              </div>
+
               <button
-                onClick={() => setActiveRoom(null)}
-                className="md:hidden p-1.5 rounded-lg bg-gray-900 text-gray-400 hover:text-white shrink-0"
+                type="button"
+                onClick={() => setActiveVideoCall(true)}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl p-2.5 transition-colors cursor-pointer flex items-center gap-1.5 text-xs font-semibold shadow-lg shadow-indigo-600/30"
+                title="Start WebRTC Video Call"
               >
-                <ArrowLeft size={16} />
+                <Video size={15} /> Video Call
               </button>
-              <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-bold uppercase shrink-0">
-                {activeRoom.contact?.name?.charAt(0) || 'U'}
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white">{activeRoom.contact?.name}</h3>
-                <span className="text-[10px] text-indigo-400 uppercase tracking-widest font-semibold block">
-                  Active room session
-                </span>
-              </div>
             </div>
 
             {/* Chat message flow */}
@@ -315,6 +378,22 @@ const Chats = () => {
                           : 'bg-gray-900/60 border border-gray-800 text-gray-300 rounded-bl-none'
                       }`}>
                         <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+
+                        {msg.fileUrl && (
+                          <div className="mt-2.5 p-2 rounded-xl bg-black/40 border border-white/10 flex items-center justify-between gap-4">
+                            <span className="text-[10px] text-gray-300 truncate max-w-[150px]">
+                              📁 Attached File Link
+                            </span>
+                            <a
+                              href={msg.fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 underline flex items-center gap-0.5 shrink-0"
+                            >
+                              Download <ExternalLink size={10} />
+                            </a>
+                          </div>
+                        )}
                         
                         <div className="flex items-center justify-end gap-1.5 mt-1.5 text-[9px] text-gray-400">
                           <span>
@@ -345,10 +424,17 @@ const Chats = () => {
             </div>
 
             {/* Input Submission */}
-            <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-900 flex gap-3 bg-gray-950/20">
+            <form onSubmit={(e) => handleSendMessage(e)} className="p-4 border-t border-gray-900 flex gap-3 bg-gray-950/20">
+              <button
+                type="button"
+                onClick={() => setShowFileModal(true)}
+                className="bg-gray-900 border border-gray-800 hover:border-indigo-500/30 text-indigo-400 rounded-xl p-3.5 transition-colors cursor-pointer shrink-0 flex items-center justify-center"
+                title="Attach Document URL"
+              >
+                <Paperclip size={16} />
+              </button>
               <input
                 type="text"
-                required
                 value={messageText}
                 onKeyDown={handleKeyDown}
                 onChange={(e) => setMessageText(e.target.value)}
@@ -376,6 +462,151 @@ const Chats = () => {
           </div>
         )}
       </section>
+
+      {/* Mock File Attachment Modal */}
+      {showFileModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={handleSendFileLink} className="glass p-6 md:p-8 rounded-3xl max-w-md w-full shadow-2xl relative overflow-hidden animate-fade-in">
+            <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2 border-b border-gray-800 pb-3">
+              <Paperclip className="text-indigo-400" />
+              Attach File Reference
+            </h3>
+            <p className="text-xs text-gray-400 mb-5">
+              Paste a link to share specifications, wireframes, or documents with your contact.
+            </p>
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-300">Document URL Link</label>
+                <input
+                  type="url"
+                  required
+                  placeholder="e.g. https://drive.google.com/your-project-file"
+                  value={fileUrl}
+                  onChange={(e) => setFileUrl(e.target.value)}
+                  className="w-full bg-gray-900/50 border border-gray-800 focus:border-indigo-500 rounded-xl py-2.5 px-4 text-white text-xs outline-none"
+                />
+              </div>
+            </div>
+            <div className="flex gap-4 pt-6 mt-4 border-t border-gray-950">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowFileModal(false);
+                  setFileUrl('');
+                }}
+                className="w-1/2 bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold py-3 px-4 rounded-xl border border-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="w-1/2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-3 px-4 rounded-xl shadow-lg shadow-indigo-600/30"
+              >
+                Attach File
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Mock WebRTC Video Call Screen Overlay */}
+      {activeVideoCall && (
+        <div className="fixed inset-0 z-50 bg-gray-950/90 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="glass p-6 md:p-8 rounded-3xl max-w-2xl w-full h-[80vh] shadow-2xl relative flex flex-col justify-between overflow-hidden animate-fade-in border border-indigo-500/10">
+            
+            {/* Call Header */}
+            <div className="flex justify-between items-center relative z-10 border-b border-gray-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white animate-pulse">
+                  {activeRoom?.contact?.name?.charAt(0) || 'U'}
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">{activeRoom?.contact?.name}</h3>
+                  <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
+                    WebRTC Connected (Peer-to-Peer)
+                  </span>
+                </div>
+              </div>
+              <div className="text-sm font-semibold text-gray-400 bg-gray-900 px-3 py-1 rounded-xl">
+                {formatDuration(callDuration)}
+              </div>
+            </div>
+
+            {/* Main Call Video Streams Area */}
+            <div className="flex-grow my-6 rounded-2xl bg-gray-950 border border-gray-805 relative flex items-center justify-center overflow-hidden">
+              {videoMuted ? (
+                <div className="text-center space-y-2 relative z-10">
+                  <VideoOff className="w-12 h-12 text-gray-600 mx-auto" />
+                  <span className="text-xs text-gray-500 font-semibold">Peer video is muted</span>
+                </div>
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-indigo-950/20">
+                  <div className="space-y-4 text-center">
+                    <div className="flex gap-1.5 justify-center items-end h-16">
+                      <span className="w-2 bg-indigo-500 rounded animate-[pulse_1s_infinite_100ms] h-8"></span>
+                      <span className="w-2 bg-indigo-500 rounded animate-[pulse_1s_infinite_200ms] h-12"></span>
+                      <span className="w-2 bg-indigo-500 rounded animate-[pulse_1s_infinite_300ms] h-16"></span>
+                      <span className="w-2 bg-indigo-500 rounded animate-[pulse_1s_infinite_400ms] h-10"></span>
+                      <span className="w-2 bg-indigo-500 rounded animate-[pulse_1s_infinite_500ms] h-6"></span>
+                    </div>
+                    <span className="text-xs text-gray-400 block uppercase tracking-wider font-semibold">Streaming video feed...</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Self Stream (Small PIP Corner View) */}
+              <div className="absolute bottom-4 right-4 w-32 h-44 rounded-xl bg-gray-900 border-2 border-indigo-500 overflow-hidden shadow-2xl flex items-center justify-center">
+                {videoMuted ? (
+                  <VideoOff className="w-6 h-6 text-gray-500" />
+                ) : (
+                  <div className="text-center space-y-1">
+                    <div className="w-8 h-8 rounded-full bg-gray-800 mx-auto flex items-center justify-center text-[10px] text-gray-400 font-bold border border-gray-700">
+                      Me
+                    </div>
+                    <span className="text-[8px] text-indigo-400 font-semibold block uppercase tracking-widest">Self Feed</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Call Controls Footer */}
+            <div className="flex justify-center items-center gap-6 relative z-10 pt-4 border-t border-gray-800">
+              <button
+                type="button"
+                onClick={() => setAudioMuted(!audioMuted)}
+                className={`p-3 rounded-full transition-all cursor-pointer ${
+                  audioMuted ? 'bg-red-650 text-white' : 'bg-gray-900 hover:bg-gray-800 text-gray-300'
+                }`}
+                title={audioMuted ? 'Unmute Audio' : 'Mute Audio'}
+              >
+                {audioMuted ? <MicOff size={18} /> : <Mic size={18} />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveVideoCall(false)}
+                className="p-3.5 bg-red-600 hover:bg-red-500 text-white rounded-full transition-colors cursor-pointer shadow-lg shadow-red-600/30"
+                title="Hang Up Call"
+              >
+                <PhoneOff size={20} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setVideoMuted(!videoMuted)}
+                className={`p-3 rounded-full transition-all cursor-pointer ${
+                  videoMuted ? 'bg-red-655 text-white' : 'bg-gray-900 hover:bg-gray-800 text-gray-300'
+                }`}
+                title={videoMuted ? 'Start Video' : 'Stop Video'}
+              >
+                {videoMuted ? <VideoOff size={18} /> : <Video size={18} />}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

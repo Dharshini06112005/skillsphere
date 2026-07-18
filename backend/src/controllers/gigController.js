@@ -1,11 +1,12 @@
 const Gig = require('../models/Gig');
+const Notification = require('../models/Notification');
 
 /**
  * Post a new gig (Client only)
  */
 exports.createGig = async (req, res) => {
   try {
-    const { title, description, category, skillsRequired, budgetMin, budgetMax, location, milestones } = req.body;
+    const { title, description, category, skillsRequired, budgetMin, budgetMax, location, milestones, attachments } = req.body;
 
     if (!title || !description || !category || !skillsRequired || !budgetMin || !budgetMax || !location) {
       return res.status(400).json({ success: false, message: 'All general fields are required' });
@@ -25,6 +26,7 @@ exports.createGig = async (req, res) => {
       budgetMax: Number(budgetMax),
       location,
       milestones: milestones || [],
+      attachments: attachments || [],
     });
 
     res.status(201).json({
@@ -163,5 +165,51 @@ exports.updateGig = async (req, res) => {
   } catch (error) {
     console.error('Update gig error:', error);
     res.status(500).json({ success: false, message: 'Could not update gig' });
+  }
+};
+
+/**
+ * Invite a freelancer to apply for a gig (Client only)
+ */
+exports.inviteFreelancer = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { freelancerId } = req.body;
+
+    if (!freelancerId) {
+      return res.status(400).json({ success: false, message: 'Freelancer ID is required' });
+    }
+
+    const gig = await Gig.findById(id);
+    if (!gig) {
+      return res.status(404).json({ success: false, message: 'Gig not found' });
+    }
+
+    if (gig.client.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to invite freelancers to this gig' });
+    }
+
+    if (gig.invitedFreelancers.includes(freelancerId)) {
+      return res.status(400).json({ success: false, message: 'Freelancer is already invited to this gig' });
+    }
+
+    gig.invitedFreelancers.push(freelancerId);
+    await gig.save();
+
+    await Notification.create({
+      user: freelancerId,
+      type: 'system',
+      message: `Client ${req.user.name} has invited you to apply for their project "${gig.title}"!`,
+      relatedId: gig._id.toString(),
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Freelancer invited successfully!',
+      gig,
+    });
+  } catch (error) {
+    console.error('Invite freelancer error:', error);
+    res.status(500).json({ success: false, message: 'Could not process invitation' });
   }
 };

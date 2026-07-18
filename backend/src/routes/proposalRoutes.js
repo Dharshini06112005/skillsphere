@@ -11,5 +11,6 @@ router.get('/my-proposals', protect, restrictTo('freelancer'), proposalControlle
 // Protected Client routes
 router.get('/gig/:gigId', protect, restrictTo('client'), proposalController.getGigProposals);
 router.put('/:id/status', protect, restrictTo('client'), proposalController.updateProposalStatus);
+router.put('/:id/negotiate', protect, proposalController.negotiateProposal);
 
 module.exports = router;

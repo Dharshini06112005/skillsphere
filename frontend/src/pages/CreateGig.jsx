@@ -25,6 +25,7 @@ const CreateGig = () => {
   const [budgetMin, setBudgetMin] = useState('');
   const [budgetMax, setBudgetMax] = useState('');
   const [location, setLocation] = useState('');
+  const [attachmentUrl, setAttachmentUrl] = useState('');
   
   // Milestones inputs
   const [milestones, setMilestones] = useState([]);
@@ -90,6 +91,14 @@ const CreateGig = () => {
         .map((s) => s.trim())
         .filter((s) => s.length > 0);
 
+      const attachments = [];
+      if (attachmentUrl.trim()) {
+        attachments.push({
+          name: 'Project Specifications / Brief File',
+          url: attachmentUrl.trim()
+        });
+      }
+
       const response = await API.post('/gigs', {
         title,
         description,
@@ -99,6 +108,7 @@ const CreateGig = () => {
         budgetMax: Number(budgetMax),
         location,
         milestones,
+        attachments,
       });
 
       if (response.data.success) {
@@ -216,6 +226,17 @@ const CreateGig = () => {
               value={skillsRequired}
               onChange={(e) => setSkillsRequired(e.target.value)}
               placeholder="e.g. React, TailwindCSS, Axios, Redux"
+              className="w-full bg-gray-900/50 border border-gray-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3 px-4 text-white outline-none"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-300">Project Document / Specification Link (Optional)</label>
+            <input
+              type="url"
+              value={attachmentUrl}
+              onChange={(e) => setAttachmentUrl(e.target.value)}
+              placeholder="e.g. https://drive.google.com/file/d/your-specifications-doc"
               className="w-full bg-gray-900/50 border border-gray-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3 px-4 text-white outline-none"
             />
           </div>

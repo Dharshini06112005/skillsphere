@@ -10,7 +10,8 @@ import {
   Loader2,
   Calendar,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Sparkles
 } from 'lucide-react';
 
 const Gigs = () => {
@@ -22,6 +23,7 @@ const Gigs = () => {
   const [category, setCategory] = useState('');
   const [minBudget, setMinBudget] = useState('');
   const [maxBudget, setMaxBudget] = useState('');
+  const [trendingSkills, setTrendingSkills] = useState([]);
 
   // Gigs list state
   const [gigs, setGigs] = useState([]);
@@ -31,7 +33,44 @@ const Gigs = () => {
   // Trigger search on mount and filter changes
   useEffect(() => {
     fetchGigs();
+    fetchTrendingSkills();
   }, []);
+
+  const fetchTrendingSkills = async () => {
+    try {
+      const res = await API.get('/match/trending-skills');
+      if (res.data.success) {
+        setTrendingSkills(res.data.skills);
+      }
+    } catch (err) {
+      console.error('Failed to load trending skills:', err);
+    }
+  };
+
+  const handleTrendingClick = (skillName) => {
+    setSearch(skillName);
+    const queryParams = new URLSearchParams();
+    queryParams.append('search', skillName);
+    if (location) queryParams.append('location', location);
+    if (category) queryParams.append('category', category);
+    if (minBudget) queryParams.append('minBudget', minBudget);
+    if (maxBudget) queryParams.append('maxBudget', maxBudget);
+
+    setLoading(true);
+    API.get(`/gigs?${queryParams.toString()}`)
+      .then((res) => {
+        if (res.data.success) {
+          setGigs(res.data.gigs);
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        setError('Failed to filter by trending skill.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
 
   const fetchGigs = async (e) => {
     if (e) e.preventDefault();
@@ -67,6 +106,7 @@ const Gigs = () => {
     // Re-fetch clean list
     setTimeout(() => {
       fetchGigs();
+      fetchTrendingSkills();
     }, 50);
   };
 
@@ -92,106 +132,134 @@ const Gigs = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         
-        {/* Filter Panel (Left Column) */}
-        <aside className="glass p-6 rounded-3xl h-fit space-y-6 shadow-xl relative overflow-hidden">
-          <div className="absolute -top-12 -right-12 w-20 h-20 bg-indigo-600/20 rounded-full blur-2xl"></div>
-          
-          <h2 className="text-lg font-bold text-white flex items-center gap-2 border-b border-gray-800 pb-3 relative z-10">
-            <SlidersHorizontal size={18} className="text-indigo-400" />
-            Filter Search
-          </h2>
+        {/* Left Column Sidebar */}
+        <div className="space-y-6">
+          {/* Filter Panel */}
+          <aside className="glass p-6 rounded-3xl h-fit space-y-6 shadow-xl relative overflow-hidden">
+            <div className="absolute -top-12 -right-12 w-20 h-20 bg-indigo-600/20 rounded-full blur-2xl"></div>
+            
+            <h2 className="text-lg font-bold text-white flex items-center gap-2 border-b border-gray-800 pb-3 relative z-10">
+              <SlidersHorizontal size={18} className="text-indigo-400" />
+              Filter Search
+            </h2>
 
-          <form onSubmit={fetchGigs} className="space-y-4 relative z-10">
-            {/* Search string */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-400">Search Keywords</label>
-              <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" size={15} />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="e.g. React Developer"
-                  className="w-full bg-gray-950/40 border border-gray-800 focus:border-indigo-500 rounded-xl py-2 pl-10 pr-3 text-white text-xs outline-none"
-                />
+            <form onSubmit={fetchGigs} className="space-y-4 relative z-10">
+              {/* Search string */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-400">Search Keywords</label>
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" size={15} />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="e.g. React Developer"
+                    className="w-full bg-gray-950/40 border border-gray-800 focus:border-indigo-500 rounded-xl py-2 pl-10 pr-3 text-white text-xs outline-none"
+                  />
+                </div>
               </div>
-            </div>
 
-            {/* Hyperlocal Location */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-400">Neighborhood Location</label>
-              <div className="relative">
-                <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" size={15} />
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. Adyar"
-                  className="w-full bg-gray-950/40 border border-gray-800 focus:border-indigo-500 rounded-xl py-2 pl-10 pr-3 text-white text-xs outline-none"
-                />
+              {/* Hyperlocal Location */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-400">Neighborhood Location</label>
+                <div className="relative">
+                  <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500" size={15} />
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="e.g. Adyar"
+                    className="w-full bg-gray-950/40 border border-gray-800 focus:border-indigo-500 rounded-xl py-2 pl-10 pr-3 text-white text-xs outline-none"
+                  />
+                </div>
               </div>
-            </div>
 
-            {/* Category selection */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-400">Category</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full bg-gray-950/40 border border-gray-800 focus:border-indigo-500 rounded-xl py-2 px-3 text-white text-xs outline-none"
-              >
-                <option value="">All Categories</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
+              {/* Category selection */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-400">Category</label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full bg-gray-950/40 border border-gray-800 focus:border-indigo-500 rounded-xl py-2 px-3 text-white text-xs outline-none"
+                >
+                  <option value="">All Categories</option>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Budget span */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-400">Budget Range ($ USD)</label>
+                <div className="flex gap-2">
+                  <div className="relative w-1/2">
+                    <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" size={12} />
+                    <input
+                      type="number"
+                      placeholder="Min"
+                      value={minBudget}
+                      onChange={(e) => setMinBudget(e.target.value)}
+                      className="w-full bg-gray-950/40 border border-gray-800 focus:border-indigo-500 rounded-xl py-2 pl-7 pr-2 text-white text-xs outline-none"
+                    />
+                  </div>
+                  <div className="relative w-1/2">
+                    <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" size={12} />
+                    <input
+                      type="number"
+                      placeholder="Max"
+                      value={maxBudget}
+                      onChange={(e) => setMaxBudget(e.target.value)}
+                      className="w-full bg-gray-950/40 border border-gray-800 focus:border-indigo-500 rounded-xl py-2 pl-7 pr-2 text-white text-xs outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="w-1/2 bg-gray-950 border border-gray-800 hover:bg-gray-900 text-white text-xs font-semibold py-2.5 px-3 rounded-xl transition-colors cursor-pointer"
+                >
+                  Reset
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2.5 px-3 rounded-xl transition-colors cursor-pointer"
+                >
+                  Apply Filters
+                </button>
+              </div>
+
+            </form>
+          </aside>
+
+          {/* Trending Skills Panel */}
+          {trendingSkills.length > 0 && (
+            <div className="glass p-6 rounded-3xl space-y-4 shadow-xl relative overflow-hidden border border-indigo-500/10">
+              <div className="absolute -top-12 -right-12 w-20 h-20 bg-indigo-600/20 rounded-full blur-2xl"></div>
+              
+              <h3 className="text-sm font-bold text-white flex items-center gap-1.5 border-b border-gray-800 pb-3 relative z-10">
+                <Sparkles size={16} className="text-indigo-400" />
+                AI Trending Skills
+              </h3>
+              
+              <div className="flex flex-wrap gap-2 relative z-10">
+                {trendingSkills.map((ts, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleTrendingClick(ts.name)}
+                    className="text-[10px] font-semibold bg-indigo-950/40 border border-indigo-900/30 hover:border-indigo-500/50 text-indigo-300 py-1.5 px-3 rounded-xl transition-all cursor-pointer block"
+                  >
+                    #{ts.name} <span className="text-[9px] text-gray-500 font-medium">({ts.count})</span>
+                  </button>
                 ))}
-              </select>
-            </div>
-
-            {/* Budget span */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-400">Budget Range ($ USD)</label>
-              <div className="flex gap-2">
-                <div className="relative w-1/2">
-                  <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" size={12} />
-                  <input
-                    type="number"
-                    placeholder="Min"
-                    value={minBudget}
-                    onChange={(e) => setMinBudget(e.target.value)}
-                    className="w-full bg-gray-950/40 border border-gray-800 focus:border-indigo-500 rounded-xl py-2 pl-7 pr-2 text-white text-xs outline-none"
-                  />
-                </div>
-                <div className="relative w-1/2">
-                  <DollarSign className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" size={12} />
-                  <input
-                    type="number"
-                    placeholder="Max"
-                    value={maxBudget}
-                    onChange={(e) => setMaxBudget(e.target.value)}
-                    className="w-full bg-gray-950/40 border border-gray-800 focus:border-indigo-500 rounded-xl py-2 pl-7 pr-2 text-white text-xs outline-none"
-                  />
-                </div>
               </div>
             </div>
-
-            <div className="pt-2 flex gap-3">
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="w-1/2 bg-gray-950 border border-gray-800 hover:bg-gray-900 text-white text-xs font-semibold py-2.5 px-3 rounded-xl transition-colors cursor-pointer"
-              >
-                Reset
-              </button>
-              <button
-                type="submit"
-                className="w-1/2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-2.5 px-3 rounded-xl transition-colors cursor-pointer"
-              >
-                Apply Filters
-              </button>
-            </div>
-
-          </form>
-        </aside>
+          )}
+        </div>
 
         {/* Gigs List View (Right Columns) */}
         <div className="lg:col-span-3 space-y-5">

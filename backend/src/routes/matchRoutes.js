@@ -4,6 +4,7 @@ const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
+router.get('/trending-skills', protect, matchController.getTrendingSkills);
 router.get('/recommendations/:gigId', protect, matchController.getRecommendations);
 
 module.exports = router;

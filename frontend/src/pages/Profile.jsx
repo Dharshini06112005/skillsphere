@@ -40,6 +40,23 @@ const Profile = () => {
   const [newExpEnd, setNewExpEnd] = useState('');
   const [newExpCurrent, setNewExpCurrent] = useState(false);
 
+  // Resume states
+  const [resumeUrl, setResumeUrl] = useState('');
+
+  // Portfolio states
+  const [portfolio, setPortfolio] = useState([]);
+  const [newPortTitle, setNewPortTitle] = useState('');
+  const [newPortDesc, setNewPortDesc] = useState('');
+  const [newPortLink, setNewPortLink] = useState('');
+  const [newPortImg, setNewPortImg] = useState('');
+
+  // Certifications states
+  const [certifications, setCertifications] = useState([]);
+  const [newCertName, setNewCertName] = useState('');
+  const [newCertOrg, setNewCertOrg] = useState('');
+  const [newCertDate, setNewCertDate] = useState('');
+  const [newCertLink, setNewCertLink] = useState('');
+
   // Client specific forms
   const [companyName, setCompanyName] = useState('');
   const [industry, setIndustry] = useState('');
@@ -77,6 +94,9 @@ const Profile = () => {
           setAvailability(p.availability || 'available');
           setSkills(p.skills || []);
           setExperience(p.experience || []);
+          setResumeUrl(p.resumeUrl || '');
+          setPortfolio(p.portfolio || []);
+          setCertifications(p.certifications || []);
         } else if (user?.role === 'client') {
           setCompanyName(p.companyName || '');
           setIndustry(p.industry || '');
@@ -107,6 +127,9 @@ const Profile = () => {
       updatePayload.availability = availability;
       updatePayload.skills = skills;
       updatePayload.experience = experience;
+      updatePayload.resumeUrl = resumeUrl;
+      updatePayload.portfolio = portfolio;
+      updatePayload.certifications = certifications;
     } else if (user?.role === 'client') {
       updatePayload.companyName = companyName;
       updatePayload.industry = industry;
@@ -180,6 +203,54 @@ const Profile = () => {
   // Remove experience entry
   const handleRemoveExperience = (idxToRemove) => {
     setExperience(experience.filter((_, idx) => idx !== idxToRemove));
+  };
+
+  // Add portfolio entry
+  const handleAddPortfolio = (e) => {
+    e.preventDefault();
+    if (!newPortTitle.trim()) return;
+
+    const newPort = {
+      title: newPortTitle.trim(),
+      description: newPortDesc.trim(),
+      link: newPortLink.trim(),
+      imageUrl: newPortImg.trim() || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=300&q=80'
+    };
+
+    setPortfolio([...portfolio, newPort]);
+    setNewPortTitle('');
+    setNewPortDesc('');
+    setNewPortLink('');
+    setNewPortImg('');
+  };
+
+  // Remove portfolio entry
+  const handleRemovePortfolio = (idxToRemove) => {
+    setPortfolio(portfolio.filter((_, idx) => idx !== idxToRemove));
+  };
+
+  // Add certification entry
+  const handleAddCertification = (e) => {
+    e.preventDefault();
+    if (!newCertName.trim()) return;
+
+    const newCert = {
+      name: newCertName.trim(),
+      issuingOrganization: newCertOrg.trim(),
+      issueDate: newCertDate ? new Date(newCertDate) : null,
+      credentialUrl: newCertLink.trim()
+    };
+
+    setCertifications([...certifications, newCert]);
+    setNewCertName('');
+    setNewCertOrg('');
+    setNewCertDate('');
+    setNewCertLink('');
+  };
+
+  // Remove certification entry
+  const handleRemoveCertification = (idxToRemove) => {
+    setCertifications(certifications.filter((_, idx) => idx !== idxToRemove));
   };
 
   // 2FA Actions
@@ -505,6 +576,195 @@ const Profile = () => {
                   </div>
 
                 </div>
+
+                {/* Resume URL Field */}
+                <div className="space-y-2 border-t border-gray-800/60 pt-4">
+                  <label className="text-sm font-semibold text-gray-300">Resume Link</label>
+                  <div className="relative">
+                    <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
+                    <input
+                      type="url"
+                      placeholder="e.g. https://drive.google.com/your-resume-link"
+                      value={resumeUrl}
+                      onChange={(e) => setResumeUrl(e.target.value)}
+                      className="w-full bg-gray-900/50 border border-gray-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-3 pl-12 pr-4 text-white outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Portfolio Gallery Manager */}
+                <div className="space-y-4 border-t border-gray-800/60 pt-4">
+                  <label className="text-sm font-semibold text-gray-300 block">Portfolio Gallery</label>
+                  
+                  {/* Portfolio Addition Form */}
+                  <div className="p-4 rounded-2xl bg-gray-950/30 border border-gray-900 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <input
+                        type="text"
+                        placeholder="Project Title (e.g. E-Commerce Website)"
+                        value={newPortTitle}
+                        onChange={(e) => setNewPortTitle(e.target.value)}
+                        className="w-full bg-gray-900/40 border border-gray-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2 px-3 text-white text-sm outline-none"
+                      />
+                      <input
+                        type="url"
+                        placeholder="Project URL Link (optional)"
+                        value={newPortLink}
+                        onChange={(e) => setNewPortLink(e.target.value)}
+                        className="w-full bg-gray-900/40 border border-gray-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2 px-3 text-white text-sm outline-none"
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <input
+                        type="url"
+                        placeholder="Project Image URL (optional)"
+                        value={newPortImg}
+                        onChange={(e) => setNewPortImg(e.target.value)}
+                        className="w-full bg-gray-900/40 border border-gray-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2 px-3 text-white text-sm outline-none"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Short Description"
+                        value={newPortDesc}
+                        onChange={(e) => setNewPortDesc(e.target.value)}
+                        className="w-full bg-gray-900/40 border border-gray-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2 px-3 text-white text-sm outline-none"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddPortfolio}
+                      className="w-full bg-gray-900 border border-gray-800 hover:border-indigo-500/30 text-white font-semibold py-2 px-4 rounded-xl text-xs hover:bg-gray-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <PlusCircle size={14} /> Add Portfolio Project
+                    </button>
+                  </div>
+
+                  {/* Portfolio Gallery List */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                    {portfolio.length === 0 ? (
+                      <span className="text-xs text-gray-500 italic col-span-2">No portfolio items logged.</span>
+                    ) : (
+                      portfolio.map((port, idx) => (
+                        <div key={idx} className="rounded-2xl overflow-hidden bg-gray-950/40 border border-gray-900 flex flex-col justify-between p-4 relative group">
+                          <div className="space-y-2">
+                            {port.imageUrl && (
+                              <img src={port.imageUrl} alt={port.title} className="w-full h-28 object-cover rounded-xl border border-gray-900" />
+                            )}
+                            <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                              {port.title}
+                              {port.link && (
+                                <a href={port.link} target="_blank" rel="noreferrer" className="text-indigo-400 hover:text-indigo-300">
+                                  <ExternalLink size={12} />
+                                </a>
+                              )}
+                            </h4>
+                            {port.description && <p className="text-xs text-gray-400 leading-relaxed">{port.description}</p>}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePortfolio(idx)}
+                            className="text-gray-500 hover:text-red-400 transition-colors cursor-pointer absolute right-4 top-4 bg-gray-950/60 p-1.5 rounded-lg shrink-0"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Certifications Manager */}
+                <div className="space-y-4 border-t border-gray-800/60 pt-4">
+                  <label className="text-sm font-semibold text-gray-300 block">Certifications</label>
+                  
+                  {/* Certifications Addition Form */}
+                  <div className="p-4 rounded-2xl bg-gray-950/30 border border-gray-900 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <input
+                        type="text"
+                        placeholder="Certification Name (e.g. AWS Solution Architect)"
+                        value={newCertName}
+                        onChange={(e) => setNewCertName(e.target.value)}
+                        className="w-full bg-gray-900/40 border border-gray-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2 px-3 text-white text-sm outline-none"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Issuing Organization (e.g. Amazon Web Services)"
+                        value={newCertOrg}
+                        onChange={(e) => setNewCertOrg(e.target.value)}
+                        className="w-full bg-gray-900/40 border border-gray-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2 px-3 text-white text-sm outline-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-gray-500 uppercase tracking-wider block font-semibold">Issue Date</span>
+                        <input
+                          type="date"
+                          value={newCertDate}
+                          onChange={(e) => setNewCertDate(e.target.value)}
+                          className="w-full bg-gray-900/40 border border-gray-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2 px-3 text-white text-xs outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] text-gray-500 uppercase tracking-wider block font-semibold">Credential Verification URL</span>
+                        <input
+                          type="url"
+                          placeholder="e.g. https://aws.credentials.com/verify-123"
+                          value={newCertLink}
+                          onChange={(e) => setNewCertLink(e.target.value)}
+                          className="w-full bg-gray-900/40 border border-gray-800 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 rounded-xl py-2 px-3 text-white text-sm outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddCertification}
+                      className="w-full bg-gray-900 border border-gray-800 hover:border-indigo-500/30 text-white font-semibold py-2 px-4 rounded-xl text-xs hover:bg-gray-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <PlusCircle size={14} /> Add Certification Record
+                    </button>
+                  </div>
+
+                  {/* Certifications List */}
+                  <div className="space-y-3.5 pt-2">
+                    {certifications.length === 0 ? (
+                      <span className="text-xs text-gray-500 italic">No certifications history logged.</span>
+                    ) : (
+                      certifications.map((cert, idx) => (
+                        <div key={idx} className="flex justify-between items-start p-4 rounded-2xl bg-gray-950/40 border border-gray-900 relative">
+                          <div className="space-y-1">
+                            <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                              {cert.name}
+                              {cert.credentialUrl && (
+                                <a href={cert.credentialUrl} target="_blank" rel="noreferrer" className="text-indigo-400 hover:text-indigo-300">
+                                  <ExternalLink size={12} />
+                                </a>
+                              )}
+                            </h4>
+                            <p className="text-xs text-gray-400 font-semibold">{cert.issuingOrganization}</p>
+                            {cert.issueDate && (
+                              <p className="text-[10px] text-gray-500">
+                                Issued: {new Date(cert.issueDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCertification(idx)}
+                            className="text-gray-500 hover:text-red-400 transition-colors cursor-pointer shrink-0 absolute right-4 top-4"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
               </div>
             )}
 

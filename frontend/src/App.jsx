@@ -18,6 +18,8 @@ import Chats from './pages/Chats';
 import Proposals from './pages/Proposals';
 import AdminDashboard from './pages/AdminDashboard';
 import FreelancerAnalytics from './pages/FreelancerAnalytics';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 function App() {
   return (
@@ -29,6 +31,8 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/verify-email/:token" element={<VerifyEmail />} />
           <Route path="/oauth-callback" element={<OAuthCallback />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
 
           {/* Protected Routes wrapped in DashboardLayout */}
           <Route

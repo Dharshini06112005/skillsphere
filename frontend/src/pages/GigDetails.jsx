@@ -71,6 +71,12 @@ const GigDetails = () => {
   const [reviewComment, setReviewComment] = useState('');
   const [hasSubmittedReview, setHasSubmittedReview] = useState(false);
 
+  // Deliverables states
+  const [showDeliverModal, setShowDeliverModal] = useState(false);
+  const [deliverMilestoneId, setDeliverMilestoneId] = useState('');
+  const [deliverNotes, setDeliverNotes] = useState('');
+  const [deliverUrl, setDeliverUrl] = useState('');
+
   useEffect(() => {
     loadGigData();
   }, [id]);
@@ -380,21 +386,47 @@ const GigDetails = () => {
         }
       }
 
-      // Update gig milestone status
-      const updatedMilestones = gig.milestones.map(m => {
-        if (m._id === milestoneId) {
-          m.status = newStatus;
-        }
-        return m;
-      });
-
-      const res = await API.put(`/gigs/${id}`, { milestones: updatedMilestones });
+      const res = await API.put(`/gigs/${id}/milestones/${milestoneId}`, { status: newStatus });
       if (res.data.success) {
         setSuccess(`Milestone progress updated: ${newStatus}`);
         loadGigData();
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Milestone update failed.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleOpenDeliverModal = (milestoneId) => {
+    setDeliverMilestoneId(milestoneId);
+    setDeliverNotes('');
+    setDeliverUrl('');
+    setShowDeliverModal(true);
+  };
+
+  const handleDeliverSubmit = async (e) => {
+    e.preventDefault();
+    if (!deliverMilestoneId) return;
+
+    setError('');
+    setSuccess('');
+    setActionLoading(true);
+    setShowDeliverModal(false);
+
+    try {
+      const res = await API.put(`/gigs/${id}/milestones/${deliverMilestoneId}`, {
+        status: 'completed',
+        submissionNotes: deliverNotes,
+        submissionUrl: deliverUrl
+      });
+
+      if (res.data.success) {
+        setSuccess('Milestone deliverables submitted successfully! Client notified for review.');
+        loadGigData();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Deliverable submission failed.');
     } finally {
       setActionLoading(false);
     }
@@ -560,90 +592,114 @@ const GigDetails = () => {
                   const isApproved = m.status === 'approved';
 
                   return (
-                    <div key={m._id} className="p-4 rounded-2xl bg-gray-950/40 border border-gray-900 flex justify-between items-center gap-4 relative overflow-hidden">
-                      <div className="space-y-1">
-                        <span className="block text-[10px] text-gray-500 uppercase tracking-widest">Milestone {idx + 1}</span>
-                        <h4 className="text-sm font-bold text-white">{m.title}</h4>
-                        {m.description && <p className="text-xs text-gray-500">{m.description}</p>}
-                      </div>
-                      
-                      <div className="text-right flex flex-col items-end gap-2 shrink-0">
-                        <span className="text-sm font-extrabold text-emerald-400 block">${m.amount}</span>
+                    <div key={m._id} className="p-4 rounded-2xl bg-gray-950/40 border border-gray-900 flex flex-col gap-3 relative overflow-hidden">
+                      <div className="flex justify-between items-center gap-4 w-full">
+                        <div className="space-y-1">
+                          <span className="block text-[10px] text-gray-500 uppercase tracking-widest">Milestone {idx + 1}</span>
+                          <h4 className="text-sm font-bold text-white">{m.title}</h4>
+                          {m.description && <p className="text-xs text-gray-500">{m.description}</p>}
+                        </div>
                         
-                        {/* Interactive triggers based on role */}
-                        <div className="flex gap-2">
+                        <div className="text-right flex flex-col items-end gap-2 shrink-0">
+                          <span className="text-sm font-extrabold text-emerald-400 block">${m.amount}</span>
                           
-                          {/* Client controls */}
-                          {user?.role === 'client' && isOwner && (
-                            <>
-                              {m.status === 'pending' && gig.status === 'in_progress' && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenCheckout(m)}
-                                  className="text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded px-2.5 py-1 flex items-center gap-1 shadow cursor-pointer"
-                                >
-                                  <CreditCard size={10} /> Fund Escrow
-                                </button>
-                              )}
-                              {m.status === 'completed' && (
-                                <>
+                          {/* Interactive triggers based on role */}
+                          <div className="flex gap-2">
+                            
+                            {/* Client controls */}
+                            {user?.role === 'client' && isOwner && (
+                              <>
+                                {m.status === 'pending' && gig.status === 'in_progress' && (
                                   <button
                                     type="button"
-                                    onClick={() => handleMilestoneAction(m._id, 'approved')}
+                                    onClick={() => handleOpenCheckout(m)}
+                                    className="text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded px-2.5 py-1 flex items-center gap-1 shadow cursor-pointer"
+                                  >
+                                    <CreditCard size={10} /> Fund Escrow
+                                  </button>
+                                )}
+                                {m.status === 'completed' && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMilestoneAction(m._id, 'approved')}
+                                      className="text-[10px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded px-2.5 py-1 cursor-pointer"
+                                    >
+                                      Approve & Release
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenDispute(m._id)}
+                                      className="text-[10px] font-bold bg-red-950/30 border border-red-900/40 text-red-400 hover:bg-red-900 hover:text-white rounded px-2.5 py-1 cursor-pointer"
+                                    >
+                                      Dispute
+                                    </button>
+                                  </>
+                                )}
+                              </>
+                            )}
+
+                            {/* Freelancer controls */}
+                            {user?.role === 'freelancer' && myProposal?.status === 'accepted' && (
+                              <>
+                                {m.status === 'in_progress' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenDeliverModal(m._id)}
                                     className="text-[10px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded px-2.5 py-1 cursor-pointer"
                                   >
-                                    Approve & Release
+                                    Submit Progress
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenDispute(m._id)}
-                                    className="text-[10px] font-bold bg-red-950/30 border border-red-900/40 text-red-400 hover:bg-red-900 hover:text-white rounded px-2.5 py-1 cursor-pointer"
-                                  >
-                                    Dispute
-                                  </button>
-                                </>
-                              )}
-                            </>
-                          )}
+                                )}
+                              </>
+                            )}
 
-                          {/* Freelancer controls */}
-                          {user?.role === 'freelancer' && myProposal?.status === 'accepted' && (
-                            <>
-                              {m.status === 'in_progress' && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleMilestoneAction(m._id, 'completed')}
-                                  className="text-[10px] font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded px-2.5 py-1 cursor-pointer"
-                                >
-                                  Submit Progress
-                                </button>
-                              )}
-                            </>
-                          )}
-
-                          {/* Static status display */}
-                          {isApproved && (
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/20 border border-emerald-900/30 px-2 py-0.5 rounded">
-                              Released
-                            </span>
-                          )}
-                          {!isApproved && !isFunded && (
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-gray-500 bg-gray-900 px-2 py-0.5 rounded">
-                              Unfunded
-                            </span>
-                          )}
-                          {m.status === 'in_progress' && (
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-950/20 border border-indigo-900/30 px-2 py-0.5 rounded">
-                              Escrow Locked
-                            </span>
-                          )}
-                          {isCompleted && user?.role === 'freelancer' && (
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400 bg-amber-950/20 border border-amber-900/30 px-2 py-0.5 rounded animate-pulse">
-                              Pending Review
-                            </span>
-                          )}
+                            {/* Static status display */}
+                            {isApproved && (
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/20 border border-emerald-900/30 px-2 py-0.5 rounded">
+                                Released
+                              </span>
+                            )}
+                            {!isApproved && !isFunded && (
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-gray-500 bg-gray-900 px-2 py-0.5 rounded">
+                                Unfunded
+                              </span>
+                            )}
+                            {m.status === 'in_progress' && (
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-indigo-400 bg-indigo-950/20 border border-indigo-900/30 px-2 py-0.5 rounded">
+                                Escrow Locked
+                              </span>
+                            )}
+                            {isCompleted && (
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400 bg-amber-950/20 border border-amber-900/30 px-2 py-0.5 rounded animate-pulse">
+                                Pending Review
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
+
+                      {/* Display Submitted Deliverables Work notes & URL if present */}
+                      {m.submissionNotes && (
+                        <div className="p-3.5 rounded-xl bg-indigo-950/20 border border-indigo-900/35 text-xs space-y-1.5 text-left w-full mt-1">
+                          <span className="block text-[10px] uppercase font-extrabold text-indigo-400">Freelancer Submitted Deliverables:</span>
+                          <p className="text-gray-300 italic">{m.submissionNotes}</p>
+                          {m.submissionUrl && (
+                            <a
+                              href={m.submissionUrl.startsWith('http') ? m.submissionUrl : `https://${m.submissionUrl}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-indigo-400 hover:text-indigo-300 font-bold underline inline-flex items-center gap-1 mt-1 cursor-pointer"
+                            >
+                              <span>View / Download Deliverable Link</span>
+                              <span className="text-[10px]">🔗</span>
+                            </a>
+                          )}
+                          {m.submittedAt && (
+                            <span className="block text-[9px] text-gray-500 mt-1">Submitted on: {new Date(m.submittedAt).toLocaleString()}</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1261,6 +1317,63 @@ const GigDetails = () => {
             </div>
 
           </div>
+        </div>
+      )}
+
+      {/* Submit Deliverables Modal */}
+      {showDeliverModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={handleDeliverSubmit} className="glass p-6 md:p-8 rounded-3xl max-w-md w-full shadow-2xl relative overflow-hidden animate-fade-in space-y-4">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2 border-b border-gray-800 pb-3">
+              <Send size={20} className="text-indigo-400" />
+              Submit Milestone Deliverables
+            </h3>
+
+            <p className="text-xs text-gray-400">
+              Provide project deliverable notes and a link to download or inspect your completed files (e.g. GitHub link, Figma link, Drive folder).
+            </p>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-300">Deliverable Work URL / Link</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. https://github.com/myusername/project"
+                value={deliverUrl}
+                onChange={(e) => setDeliverUrl(e.target.value)}
+                className="w-full bg-gray-900/50 border border-gray-800 focus:border-indigo-500 rounded-xl py-2.5 px-4 text-white text-xs outline-none"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-gray-300">Submission Notes / Summary</label>
+              <textarea
+                required
+                rows={4}
+                placeholder="Explain the work you completed for this milestone..."
+                value={deliverNotes}
+                onChange={(e) => setDeliverNotes(e.target.value)}
+                className="w-full bg-gray-900/50 border border-gray-800 focus:border-indigo-500 rounded-xl py-2.5 px-4 text-white text-xs outline-none resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeliverModal(false)}
+                className="w-1/2 bg-gray-900 border border-gray-800 hover:bg-gray-800 text-white text-xs font-semibold py-3 px-4 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={actionLoading}
+                className="w-1/2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-3 px-4 rounded-xl cursor-pointer disabled:opacity-50"
+              >
+                {actionLoading ? 'Submitting...' : 'Submit Work'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

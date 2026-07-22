@@ -2,11 +2,13 @@
 @import "tailwindcss";
 
 @theme {
-  --color-brand-primary: #6366f1;
-  --color-brand-secondary: #8b5cf6;
-  --color-brand-accent: #ec4899;
-  --color-dark-bg: #090d16;
-  --color-card-bg: rgba(17, 24, 39, 0.6);
+  --color-brand-primary: #6366f1; /* Indigo */
+  --color-brand-secondary: #10b981; /* Emerald */
+  --color-brand-accent: #f97316; /* Orange */
+  --color-dark-bg: #090d16; /* Midnight black */
+  --color-card-bg: rgba(17, 24, 39, 0.7);
+  --color-ink-text: #f3f4f6; /* White/Gray text for dark mode */
+  --color-map-line: rgba(255, 255, 255, 0.08);
   --font-display: 'Outfit', sans-serif;
   --font-sans: 'Inter', sans-serif;
 }
@@ -14,22 +16,24 @@
 @layer base {
   body {
     background-color: var(--color-dark-bg);
-    color: #f3f4f6;
+    color: var(--color-ink-text);
     font-family: var(--font-sans);
     overflow-x: hidden;
   }
   
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
+    color: #ffffff;
   }
 }
 
-/* Glassmorphism custom utilities */
+/* Premium Dark Mode Glassmorphism Cards */
 .glass {
-  background: rgba(17, 24, 39, 0.55);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(17, 24, 39, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
 }
 
 .glass-hover {
@@ -37,9 +41,9 @@
 }
 
 .glass-hover:hover {
-  background: rgba(17, 24, 39, 0.7);
-  border-color: rgba(99, 102, 241, 0.3);
-  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.15);
+  background: rgba(17, 24, 39, 0.8);
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.2);
   transform: translateY(-2px);
 }
 
@@ -59,23 +63,23 @@
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #4f46e5;
+  background: #6366f1;
 }
 
 /* Text glow effect */
 .text-glow {
-  text-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+  text-shadow: 0 0 15px rgba(99, 102, 241, 0.6);
 }
 
 .text-glow-secondary {
-  text-shadow: 0 0 15px rgba(139, 92, 246, 0.5);
+  text-shadow: 0 0 15px rgba(16, 185, 129, 0.6);
 }
 
-/* Animated gradient backgrounds */
+/* Premium dark neon gradient backgrounds */
 .bg-gradient-mesh {
   background-color: #090d16;
   background-image: 
-    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.1) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.1) 0px, transparent 50%);
+    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.18) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(249, 115, 22, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%);
 }

@@ -19,6 +19,8 @@ const Dashboard = () => {
   const { user } = useContext(AuthContext);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [statsData, setStatsData] = useState({ applicationsCount: 0, activeProjectsCount: 0, gigsPostedCount: 0 });
+  const [activeGigs, setActiveGigs] = useState([]);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -26,9 +28,17 @@ const Dashboard = () => {
         const response = await API.get('/profile/me');
         if (response.data.success) {
           setProfile(response.data.profile);
+          if (response.data.stats) {
+            setStatsData(response.data.stats);
+          }
+        }
+
+        const gigsRes = await API.get('/gigs');
+        if (gigsRes.data.success) {
+          setActiveGigs(gigsRes.data.gigs.slice(0, 3));
         }
       } catch (err) {
-        console.error('Failed to load profile for dashboard stats:', err);
+        console.error('Failed to load dashboard data:', err);
       } finally {
         setLoading(false);
       }
@@ -49,16 +59,16 @@ const Dashboard = () => {
 
   const stats = isFreelancer
     ? [
-        { label: 'Gig Applications', value: '12', icon: Briefcase, color: 'text-indigo-400', bg: 'bg-indigo-500/10', path: '/proposals' },
+        { label: 'Gig Applications', value: statsData.applicationsCount.toString(), icon: Briefcase, color: 'text-indigo-400', bg: 'bg-indigo-500/10', path: '/proposals' },
         { label: 'Hourly Rate', value: `$${profile?.hourlyRate || 0}/hr`, icon: DollarSign, color: 'text-emerald-400', bg: 'bg-emerald-500/10', path: '/profile' },
-        { label: 'Active Projects', value: '3', icon: Layers, color: 'text-pink-400', bg: 'bg-pink-500/10', path: '/dashboard' },
-        { label: 'Profile Views', value: '142', icon: Users, color: 'text-cyan-400', bg: 'bg-cyan-500/10', path: '/profile' },
+        { label: 'Active Projects', value: statsData.activeProjectsCount.toString(), icon: Layers, color: 'text-pink-400', bg: 'bg-pink-500/10', path: '/projects' },
+        { label: 'Total Earned', value: `$${statsData.totalEarned || 0}`, icon: Users, color: 'text-cyan-400', bg: 'bg-cyan-500/10', path: '/projects' },
       ]
     : [
-        { label: 'Gigs Posted', value: '4', icon: Briefcase, color: 'text-indigo-400', bg: 'bg-indigo-500/10', path: '/gigs' },
-        { label: 'Total Spent', value: '$1,250', icon: DollarSign, color: 'text-emerald-400', bg: 'bg-emerald-500/10', path: '/dashboard' },
-        { label: 'Freelancers Hired', value: '2', icon: Users, color: 'text-pink-400', bg: 'bg-pink-500/10', path: '/dashboard' },
-        { label: 'Open Gigs', value: '1', icon: Layers, color: 'text-cyan-400', bg: 'bg-cyan-500/10', path: '/gigs' },
+        { label: 'Gigs Posted', value: statsData.gigsPostedCount.toString(), icon: Briefcase, color: 'text-indigo-400', bg: 'bg-indigo-500/10', path: '/projects' },
+        { label: 'Total Spent', value: `$${statsData.totalSpent || 0}`, icon: DollarSign, color: 'text-emerald-400', bg: 'bg-emerald-500/10', path: '/projects' },
+        { label: 'Freelancers Hired', value: statsData.hiredFreelancersCount.toString(), icon: Users, color: 'text-pink-400', bg: 'bg-pink-500/10', path: '/projects' },
+        { label: 'Open Gigs', value: statsData.openGigsCount.toString(), icon: Layers, color: 'text-cyan-400', bg: 'bg-cyan-500/10', path: '/projects' },
       ];
 
   return (
@@ -122,60 +132,56 @@ const Dashboard = () => {
       {/* Main Grid Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Module Progress Status */}
+        {/* Recent Hyperlocal Gigs & Active Contracts */}
         <div className="glass p-6 rounded-3xl lg:col-span-2 space-y-6">
           <div className="flex justify-between items-center border-b border-gray-800 pb-4">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Layers size={18} className="text-indigo-400" />
-              Module 1 Implementation Status
+              <Briefcase size={18} className="text-indigo-400" />
+              Active Projects & Marketplace Gigs
             </h3>
             <span className="text-xs bg-indigo-950/40 text-indigo-400 px-3 py-1 rounded-full border border-indigo-900/30 font-semibold uppercase">
-              Completed
+              Live Feed
             </span>
           </div>
 
           <div className="space-y-4">
-            <p className="text-sm text-gray-400">
-              The first module is fully implemented and running locally! Below are the verified configurations:
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="p-4 rounded-2xl bg-gray-950/40 border border-gray-900 space-y-2">
-                <p className="font-semibold text-white">🔑 Authentication System</p>
-                <ul className="text-xs text-gray-400 list-disc list-inside space-y-1">
-                  <li>JWT Access tokens with automatic refreshes</li>
-                  <li>Role-Based Access Control (RBAC) middleware</li>
-                  <li>Google OAuth callback route setup</li>
-                </ul>
+            {activeGigs.length === 0 ? (
+              <div className="p-8 text-center space-y-2">
+                <span className="text-xs text-gray-500 italic block">No active project milestones or marketplace gigs found.</span>
+                {user?.role === 'client' && (
+                  <button
+                    onClick={() => navigate('/create-gig')}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs py-2 px-4 rounded-xl cursor-pointer"
+                  >
+                    Post a new Gig
+                  </button>
+                )}
               </div>
-
-              <div className="p-4 rounded-2xl bg-gray-950/40 border border-gray-900 space-y-2">
-                <p className="font-semibold text-white">🔒 Two-Factor Security</p>
-                <ul className="text-xs text-gray-400 list-disc list-inside space-y-1">
-                  <li>Google Authenticator secret generator</li>
-                  <li>QR code creation via speakeasy & qrcode</li>
-                  <li>OTP check code verification endpoints</li>
-                </ul>
+            ) : (
+              <div className="space-y-3.5">
+                {activeGigs.map((g) => (
+                  <div key={g._id} className="p-4 rounded-2xl bg-gray-950/40 border border-gray-900 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-white">{g.title}</h4>
+                      <p className="text-xs text-gray-400 max-w-md line-clamp-1">{g.description}</p>
+                      <div className="flex gap-4 text-[10px] text-gray-500 pt-0.5">
+                        <span>Category: {g.category}</span>
+                        <span>Location: {g.location}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0 self-end md:self-auto">
+                      <span className="text-sm font-extrabold text-emerald-400">${g.budgetMin} - ${g.budgetMax}</span>
+                      <button
+                        onClick={() => navigate(`/gigs/${g._id}`)}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] py-1.5 px-3 rounded-lg cursor-pointer"
+                      >
+                        View Project
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-
-              <div className="p-4 rounded-2xl bg-gray-950/40 border border-gray-900 space-y-2">
-                <p className="font-semibold text-white">📧 Modular Mail System</p>
-                <ul className="text-xs text-gray-400 list-disc list-inside space-y-1">
-                  <li>Nodemailer mock system (Ethereal Email)</li>
-                  <li>Automatic email test URL developer print</li>
-                  <li>Ready to configure standard SMTP / Gmail</li>
-                </ul>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-gray-950/40 border border-gray-900 space-y-2">
-                <p className="font-semibold text-white">👤 Profile Management</p>
-                <ul className="text-xs text-gray-400 list-disc list-inside space-y-1">
-                  <li>Client/Freelancer schema splitting</li>
-                  <li>Public views for freelancer details</li>
-                  <li>Skill proficiency and pricing storage</li>
-                </ul>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 

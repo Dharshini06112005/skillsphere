@@ -1,6 +1,7 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import API from '../services/api';
 import {
   LayoutDashboard,
   User,
@@ -22,6 +23,56 @@ const DashboardLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      loadNotifications();
+      // Poll notifications every 10 seconds for real-time responsiveness
+      const interval = setInterval(loadNotifications, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  const loadNotifications = async () => {
+    try {
+      const res = await API.get('/notifications');
+      if (res.data.success) {
+        setNotifications(res.data.notifications);
+        setUnreadCount(res.data.unreadCount);
+      }
+    } catch (err) {
+      console.error('Failed to load notifications:', err);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      const res = await API.put('/notifications/read', {});
+      if (res.data.success) {
+        loadNotifications();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleMarkOneRead = async (id, relatedId) => {
+    try {
+      const res = await API.put('/notifications/read', { id });
+      if (res.data.success) {
+        loadNotifications();
+      }
+      setShowNotifDropdown(false);
+      if (relatedId) {
+        navigate(`/gigs/${relatedId}`);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -48,7 +99,7 @@ const DashboardLayout = ({ children }) => {
       return [
         ...commonItems.slice(0, 1),
         { name: 'Post a Gig', path: '/create-gig', icon: Briefcase },
-        { name: 'My Projects', path: '/projects', icon: FileText, badge: 'Soon' },
+        { name: 'My Projects', path: '/projects', icon: FileText },
         ...commonItems.slice(1)
       ];
     } else if (user?.role === 'admin') {
@@ -63,6 +114,49 @@ const DashboardLayout = ({ children }) => {
 
   const menuItems = getMenuItems();
 
+  const renderNotificationDropdown = () => {
+    if (!showNotifDropdown) return null;
+    return (
+      <div className="absolute right-0 mt-3 w-80 glass rounded-2xl shadow-2xl p-4 z-50 border border-gray-800 text-left animate-fade-in">
+        <div className="flex justify-between items-center border-b border-gray-800 pb-2 mb-2">
+          <span className="text-xs font-bold text-white uppercase tracking-wider">Notifications ({unreadCount})</span>
+          {unreadCount > 0 && (
+            <button
+              onClick={handleMarkAllRead}
+              className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold underline cursor-pointer"
+            >
+              Mark all read
+            </button>
+          )}
+        </div>
+        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+          {notifications.length === 0 ? (
+            <span className="text-xs text-gray-500 italic block py-4 text-center">No new notifications.</span>
+          ) : (
+            notifications.map((n) => (
+              <div
+                key={n._id}
+                onClick={() => handleMarkOneRead(n._id, n.relatedId)}
+                className={`p-2.5 rounded-xl border transition-all cursor-pointer text-xs ${
+                  n.status === 'unread'
+                    ? 'bg-indigo-950/20 border-indigo-900/45 hover:bg-indigo-900/20'
+                    : 'bg-transparent border-gray-900 hover:bg-gray-900/30'
+                }`}
+              >
+                <p className={`leading-relaxed ${n.status === 'unread' ? 'text-white font-medium' : 'text-gray-400'}`}>
+                  {n.message}
+                </p>
+                <span className="text-[9px] text-gray-500 block mt-1">
+                  {new Date(n.createdAt).toLocaleDateString()} at {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-dark-bg bg-gradient-mesh text-gray-100 flex flex-col md:flex-row">
       
@@ -72,9 +166,18 @@ const DashboardLayout = ({ children }) => {
           Skill<span className="text-indigo-400">Sphere</span>
         </h1>
         <div className="flex items-center gap-4">
-          <button className="relative p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors">
-            <Bell size={20} />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+              className="relative p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <Bell size={20} />
+              {unreadCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-indigo-500 ring-1 ring-gray-900 animate-pulse"></span>
+              )}
+            </button>
+            {renderNotificationDropdown()}
+          </div>
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
@@ -126,7 +229,7 @@ const DashboardLayout = ({ children }) => {
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon size={18} className={isActive ? 'text-white' : 'text-gray-400 group-hover:text-indigo-400 transition-colors'} />
+                    <Icon size={18} className={isActive ? 'text-white' : 'text-gray-450 group-hover:text-indigo-400 transition-colors'} />
                     <span className="text-sm">{item.name}</span>
                   </div>
                   {item.badge && (
@@ -167,10 +270,18 @@ const DashboardLayout = ({ children }) => {
           </div>
 
           <div className="flex items-center gap-6">
-            <button className="relative p-2.5 rounded-xl bg-gray-900/50 border border-gray-800 text-gray-400 hover:text-white hover:border-indigo-500/30 transition-all cursor-pointer">
-              <Bell size={18} />
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-indigo-500 ring-2 ring-gray-900 animate-pulse"></span>
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+                className="relative p-2.5 rounded-xl bg-gray-900/50 border border-gray-805 text-gray-400 hover:text-white hover:border-indigo-500/30 transition-all cursor-pointer"
+              >
+                <Bell size={18} />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-indigo-500 ring-2 ring-gray-900 animate-pulse"></span>
+                )}
+              </button>
+              {renderNotificationDropdown()}
+            </div>
 
             <div className="h-8 w-px bg-gray-800"></div>
 

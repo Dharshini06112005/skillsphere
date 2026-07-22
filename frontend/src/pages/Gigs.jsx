@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 import API from '../services/api';
 import {
   Search,
@@ -16,6 +17,7 @@ import {
 
 const Gigs = () => {
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
 
   // Search filter states
   const [search, setSearch] = useState('');
@@ -125,9 +127,20 @@ const Gigs = () => {
     <div className="space-y-8 animate-fade-in">
       
       {/* Title block */}
-      <div>
-        <h1 className="text-3xl font-extrabold text-white">Gig Marketplace</h1>
-        <p className="text-gray-400 text-sm mt-1">Discover verified projects and submit proposals in your neighborhood.</p>
+      <div className="flex justify-between items-center flex-wrap gap-4 border-b border-gray-800 pb-5">
+        <div>
+          <h1 className="text-3xl font-extrabold text-white">Gig Marketplace</h1>
+          <p className="text-gray-400 text-sm mt-1">Discover verified projects and submit proposals in your neighborhood.</p>
+        </div>
+        {user?.role === 'client' && (
+          <button
+            type="button"
+            onClick={() => navigate('/create-gig')}
+            className="bg-brand-accent hover:bg-orange-600 text-white font-bold text-xs py-3 px-5 rounded-xl transition-all cursor-pointer shadow-lg shadow-orange-500/20 flex items-center gap-2 hover:-translate-y-0.5 shrink-0"
+          >
+            Post a Gig
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

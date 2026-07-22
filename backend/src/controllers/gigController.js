@@ -213,3 +213,96 @@ exports.inviteFreelancer = async (req, res) => {
     res.status(500).json({ success: false, message: 'Could not process invitation' });
   }
 };
+
+/**
+ * Update milestone status (Submitting work for freelancer, approving for client)
+ */
+exports.updateMilestoneStatus = async (req, res) => {
+  try {
+    const { id, milestoneId } = req.params;
+    const { status, submissionNotes, submissionUrl } = req.body;
+
+    const gig = await Gig.findById(id);
+    if (!gig) {
+      return res.status(404).json({ success: false, message: 'Gig not found' });
+    }
+
+    const milestone = gig.milestones.id(milestoneId);
+    if (!milestone) {
+      return res.status(404).json({ success: false, message: 'Milestone not found' });
+    }
+
+    const Proposal = require('../models/Proposal');
+    const acceptedProposal = await Proposal.findOne({ gig: id, status: 'accepted' });
+
+    const isClient = gig.client.toString() === req.user._id.toString();
+    const isFreelancer = acceptedProposal && acceptedProposal.freelancer.toString() === req.user._id.toString();
+
+    if (!isClient && !isFreelancer) {
+      return res.status(403).json({ success: false, message: 'You are not authorized to update this milestone' });
+    }
+
+    if (isFreelancer && status === 'completed') {
+      milestone.status = 'completed';
+      milestone.submissionNotes = submissionNotes || '';
+      milestone.submissionUrl = submissionUrl || '';
+      milestone.submittedAt = new Date();
+    } else if (isClient && status === 'approved') {
+      milestone.status = 'approved';
+    } else {
+      milestone.status = status;
+    }
+
+    const allApproved = gig.milestones.every(m => m.status === 'approved');
+    if (allApproved) {
+      gig.status = 'completed';
+    }
+
+    await gig.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Milestone status updated successfully to ${status}`,
+      gig
+    });
+  } catch (error) {
+    console.error('Update milestone error:', error);
+    res.status(500).json({ success: false, message: 'Failed to update milestone status' });
+  }
+};
+
+/**
+ * Get current user's projects/contracts
+ */
+exports.getMyProjects = async (req, res) => {
+  try {
+    if (req.user.role === 'client') {
+      const gigs = await Gig.find({ client: req.user._id })
+        .populate('client', 'name email')
+        .sort({ createdAt: -1 });
+
+      return res.status(200).json({
+        success: true,
+        gigs,
+      });
+    } else if (req.user.role === 'freelancer') {
+      const Proposal = require('../models/Proposal');
+      const acceptedProposals = await Proposal.find({ freelancer: req.user._id, status: 'accepted' });
+      const gigIds = acceptedProposals.map(p => p.gig);
+
+      const gigs = await Gig.find({ _id: { $in: gigIds } })
+        .populate('client', 'name email')
+        .sort({ createdAt: -1 });
+
+      return res.status(200).json({
+        success: true,
+        gigs,
+      });
+    }
+
+    res.status(400).json({ success: false, message: 'Invalid role' });
+  } catch (error) {
+    console.error('Get my projects error:', error);
+    res.status(500).json({ success: false, message: 'Failed to retrieve projects' });
+  }
+};

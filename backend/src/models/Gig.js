@@ -50,6 +50,9 @@ const gigSchema = new mongoose.Schema(
           enum: ['pending', 'in_progress', 'completed', 'approved'],
           default: 'pending',
         },
+        submissionNotes: String,
+        submissionUrl: String,
+        submittedAt: Date,
       },
     ],
     status: {

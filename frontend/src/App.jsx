@@ -20,6 +20,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import FreelancerAnalytics from './pages/FreelancerAnalytics';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Projects from './pages/Projects';
 
 function App() {
   return (
@@ -101,6 +102,16 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <Proposals />
+                </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/projects"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <Projects />
                 </DashboardLayout>
               </ProtectedRoute>
             }

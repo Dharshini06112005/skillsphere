@@ -21,9 +21,47 @@ exports.getMyProfile = async (req, res) => {
       );
     }
 
+    const Proposal = require('../models/Proposal');
+    const Gig = require('../models/Gig');
+    const Transaction = require('../models/Transaction');
+    
+    let applicationsCount = 0;
+    let activeProjectsCount = 0;
+    let gigsPostedCount = 0;
+    let totalSpent = 0;
+    let totalEarned = 0;
+    let hiredFreelancersCount = 0;
+    let openGigsCount = 0;
+
+    if (req.user.role === 'freelancer') {
+      applicationsCount = await Proposal.countDocuments({ freelancer: req.user._id });
+      activeProjectsCount = await Proposal.countDocuments({ freelancer: req.user._id, status: 'accepted' });
+      const earnedTx = await Transaction.find({ freelancer: req.user._id, status: 'released' });
+      totalEarned = earnedTx.reduce((sum, tx) => sum + tx.amount, 0);
+    } else if (req.user.role === 'client') {
+      gigsPostedCount = await Gig.countDocuments({ client: req.user._id });
+      openGigsCount = await Gig.countDocuments({ client: req.user._id, status: 'open' });
+      activeProjectsCount = await Gig.countDocuments({ client: req.user._id, status: 'in_progress' });
+      
+      const myGigs = await Gig.find({ client: req.user._id }).select('_id');
+      hiredFreelancersCount = await Proposal.countDocuments({ status: 'accepted', gig: { $in: myGigs } });
+      
+      const spentTx = await Transaction.find({ client: req.user._id, status: 'released' });
+      totalSpent = spentTx.reduce((sum, tx) => sum + tx.amount, 0);
+    }
+
     res.status(200).json({
       success: true,
       profile,
+      stats: {
+        applicationsCount,
+        activeProjectsCount,
+        gigsPostedCount,
+        totalSpent,
+        totalEarned,
+        hiredFreelancersCount,
+        openGigsCount
+      }
     });
   } catch (error) {
     console.error('Get profile error:', error);

@@ -18,6 +18,9 @@ const OAuthCallback = () => {
       // Complete OAuth login session
       loginWithOAuth(token, { name, email, role });
       navigate('/dashboard', { replace: true });
+    } else if (localStorage.getItem('token')) {
+      // Already authenticated in previous Strict Mode mount tick
+      navigate('/dashboard', { replace: true });
     } else {
       // Authentication failed
       navigate('/login?error=oauth_failed', { replace: true });

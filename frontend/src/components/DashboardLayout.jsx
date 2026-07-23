@@ -105,7 +105,6 @@ const DashboardLayout = ({ children }) => {
     } else if (user?.role === 'admin') {
       return [
         { name: 'Overview', path: '/dashboard', icon: LayoutDashboard },
-        { name: 'Admin Panel', path: '/admin', icon: ShieldCheck },
         ...commonItems.slice(2)
       ];
     }

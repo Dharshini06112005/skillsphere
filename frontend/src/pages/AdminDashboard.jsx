@@ -17,6 +17,7 @@ import {
 const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [disputes, setDisputes] = useState([]);
+  const [totalVolume, setTotalVolume] = useState(0);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('users'); // 'users' or 'disputes'
 
@@ -38,6 +39,7 @@ const AdminDashboard = () => {
       const disputeRes = await API.get('/admin/disputes');
       if (disputeRes.data.success) {
         setDisputes(disputeRes.data.disputes);
+        setTotalVolume(disputeRes.data.totalVolume || 0);
       }
     } catch (err) {
       console.error(err);
@@ -113,7 +115,7 @@ const AdminDashboard = () => {
   }
 
   // Admin stats counters
-  const totalRevenue = disputes.reduce((sum, d) => sum + d.amount, 0) + 12500; // mock total ledger volume
+  const totalRevenue = totalVolume;
   const activeDisputesCount = disputes.filter(d => d.status === 'pending').length;
 
   return (
@@ -234,7 +236,7 @@ const AdminDashboard = () => {
                           onClick={() => handleToggleVerification(u._id)}
                           className="flex items-center gap-1 text-xs text-gray-400 hover:text-indigo-400 transition-colors"
                         >
-                          <ShieldCheck size={14} className={u.isEmailVerified ? 'text-indigo-400' : 'text-gray-600'} />
+                          <ShieldCheck size={14} className={u.isVerifiedFreelancer ? 'text-indigo-400' : 'text-gray-600'} />
                           Toggle Badge
                         </button>
                       ) : (

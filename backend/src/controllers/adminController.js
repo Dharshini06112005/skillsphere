@@ -10,7 +10,20 @@ const Gig = require('../models/Gig');
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find().select('-password').sort({ createdAt: -1 });
-    res.status(200).json({ success: true, count: users.length, users });
+    
+    const profiles = await Profile.find({ user: { $in: users.map(u => u._id) } });
+    const profileMap = {};
+    profiles.forEach(p => {
+      profileMap[p.user.toString()] = p.verificationBadge;
+    });
+
+    const usersWithVerification = users.map(u => {
+      const uObj = u.toObject();
+      uObj.isVerifiedFreelancer = profileMap[u._id.toString()] || false;
+      return uObj;
+    });
+
+    res.status(200).json({ success: true, count: usersWithVerification.length, users: usersWithVerification });
   } catch (error) {
     console.error('Admin get users error:', error);
     res.status(500).json({ success: false, message: 'Could not fetch users list' });
@@ -88,7 +101,16 @@ exports.getAllDisputes = async (req, res) => {
       .populate('freelancer', 'name email')
       .sort({ createdAt: -1 });
 
-    res.status(200).json({ success: true, count: disputes.length, disputes });
+    // Calculate actual total platform transaction volume dynamically
+    const transactions = await Transaction.find({ status: { $in: ['released', 'escrow_locked'] } });
+    const totalVolume = transactions.reduce((sum, tx) => sum + tx.amount, 0);
+
+    res.status(200).json({
+      success: true,
+      count: disputes.length,
+      disputes,
+      totalVolume
+    });
   } catch (error) {
     console.error('Admin get disputes error:', error);
     res.status(500).json({ success: false, message: 'Could not fetch disputes' });

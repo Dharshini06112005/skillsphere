@@ -23,6 +23,11 @@ const Dashboard = () => {
   const [activeGigs, setActiveGigs] = useState([]);
 
   useEffect(() => {
+    if (user?.role === 'admin') {
+      navigate('/admin', { replace: true });
+      return;
+    }
+
     const loadProfile = async () => {
       try {
         const response = await API.get('/profile/me');

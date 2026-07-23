@@ -8,7 +8,7 @@ const OAuthCallback = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
+    const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     const role = params.get('role');
     const name = params.get('name');
@@ -17,12 +17,13 @@ const OAuthCallback = () => {
     if (token) {
       // Complete OAuth login session
       loginWithOAuth(token, { name, email, role });
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     } else {
       // Authentication failed
-      navigate('/login?error=oauth_failed');
+      navigate('/login?error=oauth_failed', { replace: true });
     }
-  }, [location, loginWithOAuth, navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen bg-dark-bg bg-gradient-mesh flex items-center justify-center">

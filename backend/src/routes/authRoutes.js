@@ -22,33 +22,83 @@ router.post('/2fa/disable', protect, authController.disable2FA);
 router.post('/2fa/validate', authController.validate2FA);
 
 // Google OAuth routes
+const isGoogleConfigured = 
+  process.env.GOOGLE_CLIENT_ID &&
+  process.env.GOOGLE_CLIENT_SECRET &&
+  process.env.GOOGLE_CLIENT_ID !== 'your_google_client_id';
+
 router.get(
   '/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
+  (req, res, next) => {
+    if (isGoogleConfigured) {
+      return passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+    } else {
+      console.log('[Mock Google OAuth] Not configured in .env. Redirecting to mock callback flow.');
+      return res.redirect('/api/auth/google/mock-callback');
+    }
+  }
 );
 
 router.get(
   '/google/callback',
-  passport.authenticate('google', { failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=oauth_failed`, session: false }),
+  (req, res, next) => {
+    if (isGoogleConfigured) {
+      return passport.authenticate('google', { failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=oauth_failed`, session: false })(req, res, next);
+    } else {
+      return res.redirect('/api/auth/google/mock-callback');
+    }
+  },
   (req, res) => {
-    // If auth is successful, passport attaches user to req.user
     if (!req.user) {
       return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=oauth_failed`);
     }
 
-    // Check if user is suspended
     if (req.user.status === 'suspended') {
       return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=account_suspended`);
     }
 
-    // Generate JWT token
     const token = generateToken(req.user._id);
 
-    // Redirect to SPA callback page
     res.redirect(
       `${process.env.CLIENT_URL || 'http://localhost:5173'}/oauth-callback?token=${token}&role=${req.user.role}&name=${encodeURIComponent(req.user.name)}&email=${encodeURIComponent(req.user.email)}`
     );
   }
 );
+
+router.get('/google/mock-callback', async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const Profile = require('../models/Profile');
+
+    const email = 'demo.google@skillsphere.local';
+    const name = 'Demo Google User';
+
+    let user = await User.findOne({ email });
+    if (!user) {
+      const randomPassword = require('crypto').randomBytes(16).toString('hex');
+      user = await User.create({
+        name,
+        email,
+        password: randomPassword,
+        role: 'freelancer',
+        isEmailVerified: true
+      });
+      await Profile.create({ user: user._id });
+    }
+
+    if (user.status === 'suspended') {
+      return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=account_suspended`);
+    }
+
+    const token = generateToken(user._id);
+
+    res.redirect(
+      `${process.env.CLIENT_URL || 'http://localhost:5173'}/oauth-callback?token=${token}&role=${user.role}&name=${encodeURIComponent(user.name)}&email=${encodeURIComponent(user.email)}`
+    );
+  } catch (error) {
+    console.error('Mock Google callback error:', error);
+    res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=oauth_failed`);
+  }
+});
 
 module.exports = router;

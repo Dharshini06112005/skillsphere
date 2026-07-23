@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import API from '../services/api';
 import { useNavigate } from 'react-router-dom';
+import AdminDashboard from './AdminDashboard';
 import {
   TrendingUp,
   Users,
@@ -17,17 +18,17 @@ import {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
+
+  if (user?.role === 'admin') {
+    return <AdminDashboard />;
+  }
+
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [statsData, setStatsData] = useState({ applicationsCount: 0, activeProjectsCount: 0, gigsPostedCount: 0 });
   const [activeGigs, setActiveGigs] = useState([]);
 
   useEffect(() => {
-    if (user?.role === 'admin') {
-      navigate('/admin', { replace: true });
-      return;
-    }
-
     const loadProfile = async () => {
       try {
         const response = await API.get('/profile/me');

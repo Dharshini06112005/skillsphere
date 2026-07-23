@@ -32,11 +32,13 @@ const setupPassport = () => {
           clientSecret: process.env.GOOGLE_CLIENT_SECRET,
           callbackURL: process.env.GOOGLE_CALLBACK_URL,
           proxy: true,
+          passReqToCallback: true,
         },
-        async (accessToken, refreshToken, profile, done) => {
+        async (req, accessToken, refreshToken, profile, done) => {
           try {
             const email = profile.emails[0].value;
             const name = profile.displayName;
+            const role = req.query.state || 'freelancer';
 
             // 1. Check if user already exists
             let user = await User.findOne({ email });
@@ -54,7 +56,7 @@ const setupPassport = () => {
               name,
               email,
               password: randomPassword,
-              role: 'freelancer', // Default role; they can change it in profile setup
+              role, // Dynamic role based on query state!
               isEmailVerified: true, // Google emails are already verified
             });
 

@@ -30,11 +30,16 @@ const isGoogleConfigured =
 router.get(
   '/google',
   (req, res, next) => {
+    const role = req.query.role || 'freelancer';
     if (isGoogleConfigured) {
-      return passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+      return passport.authenticate('google', {
+        scope: ['profile', 'email'],
+        prompt: 'select_account',
+        state: role
+      })(req, res, next);
     } else {
-      console.log('[Mock Google OAuth] Not configured in .env. Redirecting to mock callback flow.');
-      return res.redirect('/api/auth/google/mock-callback');
+      console.log(`[Mock Google OAuth] Not configured. Redirecting with role: ${role}`);
+      return res.redirect(`/api/auth/google/mock-callback?role=${role}`);
     }
   }
 );
@@ -42,10 +47,11 @@ router.get(
 router.get(
   '/google/callback',
   (req, res, next) => {
+    const role = req.query.state || 'freelancer';
     if (isGoogleConfigured) {
       return passport.authenticate('google', { failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=oauth_failed`, session: false })(req, res, next);
     } else {
-      return res.redirect('/api/auth/google/mock-callback');
+      return res.redirect(`/api/auth/google/mock-callback?role=${role}`);
     }
   },
   (req, res) => {
@@ -70,8 +76,11 @@ router.get('/google/mock-callback', async (req, res) => {
     const User = require('../models/User');
     const Profile = require('../models/Profile');
 
-    const email = 'demo.google@skillsphere.local';
-    const name = 'Demo Google User';
+    const role = req.query.role || 'freelancer';
+    
+    // Simulate different accounts for testing different roles
+    const email = role === 'client' ? 'demo.client@skillsphere.local' : 'demo.freelancer@skillsphere.local';
+    const name = role === 'client' ? 'Demo Client User' : 'Demo Freelancer User';
 
     let user = await User.findOne({ email });
     if (!user) {
@@ -80,7 +89,7 @@ router.get('/google/mock-callback', async (req, res) => {
         name,
         email,
         password: randomPassword,
-        role: 'freelancer',
+        role: role,
         isEmailVerified: true
       });
       await Profile.create({ user: user._id });
